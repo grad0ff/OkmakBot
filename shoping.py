@@ -1,6 +1,6 @@
 class ShoppingList:
     COUNT = 0
-    __PRODUCTS = {'1', '2', '3', '4', '5', '6'}
+    __PRODUCTS = set()
 
     def __init__(self):
         self.shoplist = set()

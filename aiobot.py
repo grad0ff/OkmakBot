@@ -9,7 +9,7 @@ from shoping import ShoppingList
 
 shopping_list = ShoppingList()
 
-bot = Bot(token='1825854132:AAFn3pRQ7yhRemHc5cSsG_e3MohAyC9lQyA')
+bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
 dp = Dispatcher(bot)
 
 button_new = KeyboardButton('*НОВОЕ*', callback_data='new_item')
