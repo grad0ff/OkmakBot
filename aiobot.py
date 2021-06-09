@@ -7,8 +7,6 @@ from aiogram.utils import executor
 
 from shoping import ShoppingList
 
-import pickle
-
 shopping_list = ShoppingList()
 
 bot = Bot(token='1825854132:AAFn3pRQ7yhRemHc5cSsG_e3MohAyC9lQyA')
@@ -86,7 +84,6 @@ async def show_all_list(message):
         await message.answer('А записей нет! \U0001F923')
 
 
-
 @dp.callback_query_handler(Text(startswith='SAL'))
 async def gsl(call: types.CallbackQuery):
     print('SAL')
@@ -134,11 +131,6 @@ def display_btns(set_type, prefix):
         button_item = InlineKeyboardButton(item, callback_data=prefix + item)
         btn_list.append(button_item)
     return btn_list
-
-
-with open('items.db', 'wb') as db:
-    pickle.dump({'all': shopping_list.get_all_items(), 'list': shopping_list.shoplist,
-                 'not_added': shopping_list.not_added_list}, db)
 
 
 executor.start_polling(dp)
