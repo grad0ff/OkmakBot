@@ -35,13 +35,14 @@ async def start(message: types.Message):
 # Добавить товар в список
 @dp.message_handler(regexp='Добавить в список')
 async def add_to_list(message: types.Message):
+    markup = InlineKeyboardMarkup(row_width=2)
     if shopping_list.not_added_list:
-        markup = InlineKeyboardMarkup(row_width=2)
         markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
         markup.add(button_new, button_del)
         await message.answer('Что же нужно купить? \U0001F914', reply_markup=markup)
     else:
-        await message.answer('Больше нечего добавить... \U0001F631')
+        markup.add(button_new, button_del)
+        await message.answer('Без вариантов... \U00002639', reply_markup=markup)
 
 
 @dp.callback_query_handler(Text(startswith='ATL'))
