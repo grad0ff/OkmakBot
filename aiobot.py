@@ -11,7 +11,7 @@ import pickle
 
 shopping_list = ShoppingList()
 
-bot = Bot(token='')
+bot = Bot(token='1825854132:AAFn3pRQ7yhRemHc5cSsG_e3MohAyC9lQyA')
 dp = Dispatcher(bot)
 
 button_new = KeyboardButton('*НОВОЕ*', callback_data='new_item')
@@ -31,7 +31,7 @@ async def start(message: types.Message):
     if message.text == 'Назад':
         await message.answer('Что дальше? \U0001F60F', reply_markup=markup)
     else:
-        await message.answer('Всегда готов! "\U0001F44D"', reply_markup=markup)
+        await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
 
 
 # Добавить товар в список
