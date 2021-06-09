@@ -5,7 +5,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
 
-from shoping import ShoppingList
+from shopping import ShoppingList
 
 shopping_list = ShoppingList()
 
