@@ -5,20 +5,17 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
 
-from config import okmakbot_token
 from shoping import ShoppingList
 
 import pickle
 
 shopping_list = ShoppingList()
 
-bot = Bot(token=okmakbot_token)
+bot = Bot(token='')
 dp = Dispatcher(bot)
 
 button_new = KeyboardButton('*НОВОЕ*', callback_data='new_item')
-button_back = KeyboardButton('*НАЗАД*', callback_data='go_back')
 button_del = KeyboardButton('*УДАЛИТЬ*', callback_data='del_item')
-func_buttons = [button_new, button_back, button_del]
 
 
 # запустить Telegram бот
@@ -32,9 +29,9 @@ async def start(message: types.Message):
     markup.add(button_1, button_2)
     markup.add(button_4)
     if message.text == 'Назад':
-        await message.answer('Что дальше? 😏', reply_markup=markup)
+        await message.answer('Что дальше? \U0001F60F', reply_markup=markup)
     else:
-        await message.answer('Всегда готов! 👍', reply_markup=markup)
+        await message.answer('Всегда готов! "\U0001F44D"', reply_markup=markup)
 
 
 # Добавить товар в список
@@ -44,9 +41,9 @@ async def add_to_list(message: types.Message):
         markup = InlineKeyboardMarkup(row_width=2)
         markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
         markup.add(button_new, button_del)
-        await message.answer('Что же нужно купить? 🤔', reply_markup=markup)
+        await message.answer('Что же нужно купить? \U0001F914', reply_markup=markup)
     else:
-        await message.answer('Больше нечего добавить... 😱')
+        await message.answer('Больше нечего добавить... \U0001F631')
 
 
 @dp.callback_query_handler(Text(startswith='ATL'))
@@ -64,9 +61,9 @@ async def get_shopping_list(message: types.Message):
         markup = InlineKeyboardMarkup(row_width=2)
         markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
         markup.add(button_new, button_del)
-        await message.answer('Вот тебе список: 😉', reply_markup=markup)
+        await message.answer('Вот тебе список: \U0001F609', reply_markup=markup)
     else:
-        await message.answer('Список покупок пуст! 😁')
+        await message.answer('Список покупок пуст! \U0001F601')
 
 
 @dp.callback_query_handler(Text(startswith='GSL'))
@@ -80,10 +77,14 @@ async def gsl(call: types.CallbackQuery):
 # Показать все продукты
 @dp.message_handler(regexp='Показать все записи')
 async def show_all_list(message):
-    markup = InlineKeyboardMarkup(row_width=2)
-    markup.add(*display_btns(shopping_list.get_all_items(), 'SAL'))
-    markup.add(button_del)
-    await message.answer('Вот тебе все записи! 😎', reply_markup=markup)
+    if shopping_list.get_all_items():
+        markup = InlineKeyboardMarkup(row_width=2)
+        markup.add(*display_btns(shopping_list.get_all_items(), 'SAL'))
+        markup.add(button_del)
+        await message.answer('Вот тебе все записи! \U0001F60E', reply_markup=markup)
+    else:
+        await message.answer('А записей нет! \U0001F923')
+
 
 
 @dp.callback_query_handler(Text(startswith='SAL'))
@@ -96,8 +97,7 @@ async def gsl(call: types.CallbackQuery):
 async def del_item_forever(call: types.CallbackQuery):
     markup = InlineKeyboardMarkup()
     markup.add(*display_btns(shopping_list.get_all_items(), 'DIF'))
-    markup.add(button_back)
-    await call.message.answer('Что будем удалять? 😳', reply_markup=markup)
+    await call.message.answer('Что будем удалять? \U0001F62C', reply_markup=markup)
     await call.answer()
 
 
@@ -114,7 +114,7 @@ async def dif(call: types.CallbackQuery):
 @dp.callback_query_handler(Text(startswith='new_item'))
 async def add_new_item(call: types.CallbackQuery):
     print('*НОВОЕ*')
-    await call.message.answer('Просто напиши... 👇')
+    await call.message.answer('Просто напиши... \U0001F447')
     await call.answer()
 
 
@@ -124,7 +124,7 @@ async def ani(message: types.Message):
         shopping_list.add_new_item(message.text)
         await message.answer(f'Добавлено:  {message.text}')
     else:
-        await message.answer(f'Не повторяйся! ☝️')
+        await message.answer(f'Не повторяйся! \U0000261D')
 
 
 # Формирует список из множества
@@ -140,6 +140,5 @@ with open('items.db', 'wb') as db:
     pickle.dump({'all': shopping_list.get_all_items(), 'list': shopping_list.shoplist,
                  'not_added': shopping_list.not_added_list}, db)
 
-# with open('items.db', 'rb') as db:
-#     pickle.
+
 executor.start_polling(dp)
