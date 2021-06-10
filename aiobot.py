@@ -13,7 +13,7 @@ shopping_list = ShoppingList()
 bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
 dp = Dispatcher(bot)
 
-button_new = KeyboardButton('НОВОЕ', callback_data='new_item')
+button_new = KeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 button_del = KeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
 
 
@@ -34,24 +34,31 @@ async def start(message: types.Message):
 @dp.message_handler(regexp='Добавить в список')
 async def add_to_list(message: types.Message):
     sleep(0.25)
-    markup = InlineKeyboardMarkup(row_width=2)
     if shopping_list.not_added_list:
+        markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
         markup.add(button_new)
         await message.answer('Что же нужно купить? \U0001F914', reply_markup=markup)
     else:
+        markup = InlineKeyboardMarkup()
         markup.add(button_new)
-        await message.answer('Тут уж без вариантов... \U00002639', reply_markup=markup)
+        await message.answer('Выбирать не из чего... \U00002639', reply_markup=markup)
 
 
-# Фоновая обработка добавления в список покупок
+# Фоновая обработка добавления записи в список покупок
 @dp.callback_query_handler(Text(startswith='ATL'))
 async def atl(call: types.CallbackQuery):
     sleep(0.25)
     print('ATL')
     shopping_list.add_to_shoplist(call.data[3:])
-    await call.message.answer(f'Добавлено: {call.data[3:]} \U0001F44C')
-    await add_to_list(call.message)
+    await call.answer(f'Нужно купить:  {call.data[3:]} \U0001F44C')
+    markup = InlineKeyboardMarkup()
+    markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
+    markup.add(button_new)
+    if shopping_list.not_added_list:
+        await call.message.edit_text('Что же нужно купить? \U0001F914', reply_markup=markup)
+    else:
+        await call.message.edit_text('Выбирать не из чего... \U00002639', reply_markup=markup)
     await call.answer()
     save_data()
 
@@ -63,18 +70,24 @@ async def get_shopping_list(message: types.Message):
     if shopping_list.shoplist:
         markup = InlineKeyboardMarkup()
         markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
-        markup.add(button_del)
         await message.answer('Вот тебе список: \U0001F609', reply_markup=markup)
     else:
-        await message.answer('Список покупок пуст! \U0001F601')
+        await message.answer('Список покупок пуст! \U0001F389')
 
 
 # Фоновая обработка показа списка покупок
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
+    sleep(0.25)
     print('GSL')
     shopping_list.del_from_shoplist(call.data[3:])
-    await get_shopping_list(call.message)
+    markup = InlineKeyboardMarkup()
+    markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
+    await call.answer(f'Куплено:  {call.data[3:]} \U0001F44C', cache_time=1)
+    if shopping_list.shoplist:
+        await call.message.edit_text('Вот тебе список: \U0001F609', reply_markup=markup)
+    else:
+        await call.message.edit_text('Список покупок пуст! \U0001F389')
     await call.answer()
     save_data()
 
@@ -96,6 +109,7 @@ async def show_all_list(message):
 @dp.callback_query_handler(Text(startswith='SAL'))
 async def gsl(call: types.CallbackQuery):
     print('SAL')
+    await call.answer('Выбери что-то другое? \U0001F9D0')
     await call.answer()
 
 
@@ -106,9 +120,9 @@ async def del_item_forever(call: types.CallbackQuery):
     if shopping_list.get_all_items():
         markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.get_all_items(), 'DIF'))
-        await call.message.answer('Что будем удалять? \U0001F62C', reply_markup=markup)
+        await call.message.edit_text('Что будем удалять? \U0001F62C', reply_markup=markup)
     else:
-        await call.message.answer('А записей нет! \U0001F923')
+        await call.message.edit_text('А записей нет! \U0001F923')
     await call.answer()
 
 
@@ -118,7 +132,7 @@ async def dif(call: types.CallbackQuery):
     sleep(0.25)
     print('DIF')
     shopping_list.delete_item(call.data[3:])
-    await call.message.answer(f'Удалено: {call.data[3:]} \U0001F44C')
+    await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C', cache_time=1)
     await del_item_forever(call)
     await call.answer()
     save_data()
@@ -128,8 +142,8 @@ async def dif(call: types.CallbackQuery):
 @dp.callback_query_handler(Text(startswith='new_item'))
 async def add_new_item(call: types.CallbackQuery):
     sleep(0.25)
-    print('*НОВОЕ*')
-    await call.message.answer('Просто напиши... \U0001F447')
+    print('*НОВАЯ ЗАПИСЬ*')
+    await call.message.edit_text('Просто напиши тут... \U0001F447')
     await call.answer()
 
 
@@ -145,7 +159,7 @@ async def ani(message: types.Message):
         await message.answer(f'Не повторяйся! \U0000261D')
 
 
-# Формирует список из множества
+# Доп. функция. Формирует список кнопок из передаваемого множества
 def display_btns(set_type, prefix):
     btn_list = []
     for item in sorted(set_type):
