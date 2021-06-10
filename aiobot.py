@@ -161,8 +161,11 @@ def save_data():
     with open('data.pkl', 'wb') as dumper:
         pickle.dump(shopping_list, dumper, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-if __name__ == '__main__':
+def load_data():
     with open('data.pkl', 'rb') as loader:
         shopping_list = pickle.load(loader)
+
+if __name__ == '__main__':
+    # load_data()
+    save_data()
     executor.start_polling(dp)
