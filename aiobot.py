@@ -61,7 +61,7 @@ async def atl(call: types.CallbackQuery):
 async def get_shopping_list(message: types.Message):
     sleep(0.25)
     if shopping_list.shoplist:
-        markup = InlineKeyboardMarkup(row_width=2)
+        markup = InlineKeyboardMarkup()
         markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
         markup.add(button_del)
         await message.answer('Вот тебе список: \U0001F609', reply_markup=markup)
@@ -84,7 +84,7 @@ async def gsl(call: types.CallbackQuery):
 async def show_all_list(message):
     sleep(0.25)
     if shopping_list.get_all_items():
-        markup = InlineKeyboardMarkup(row_width=2)
+        markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.get_all_items(), 'SAL'))
         markup.add(button_del)
         await message.answer('Вот тебе все записи! \U0001F60E', reply_markup=markup)
@@ -137,15 +137,12 @@ async def add_new_item(call: types.CallbackQuery):
 @dp.message_handler()
 async def ani(message: types.Message):
     sleep(0.25)
-    if message.text.isalpha():
-        if message.text not in shopping_list.get_all_items():
-            shopping_list.add_new_item(message.text)
-            await message.answer(f'Добавлено: {message.text} \U0001F44C')
-            save_data()
-        else:
-            await message.answer(f'Не повторяйся! \U0000261D')
+    if message.text not in shopping_list.get_all_items():
+        shopping_list.add_new_item(message.text)
+        await message.answer(f'Добавлено: {message.text} \U0001F44C')
+        save_data()
     else:
-        await message.answer(f'Буквами, пожалуйста! \U0001F620')
+        await message.answer(f'Не повторяйся! \U0000261D')
 
 
 # Формирует список из множества
@@ -161,11 +158,14 @@ def save_data():
     with open('data.pkl', 'wb') as dumper:
         pickle.dump(shopping_list, dumper, protocol=pickle.HIGHEST_PROTOCOL)
 
+
 def load_data():
+    global shopping_list
     with open('data.pkl', 'rb') as loader:
         shopping_list = pickle.load(loader)
 
+
 if __name__ == '__main__':
-    # load_data()
-    save_data()
+    load_data()
+    # save_data()
     executor.start_polling(dp)
