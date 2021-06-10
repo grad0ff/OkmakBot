@@ -30,6 +30,12 @@ async def start(message: types.Message):
     await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
 
 
+# Очистить чат
+@dp.message_handler(commands='clear')
+async def clear_chat(message: types.Message):
+    await message.answer('Пока вообще никак! \U0001F61C')
+
+
 # Добавить товар в список покупок
 @dp.message_handler(regexp='Добавить в список')
 async def add_to_list(message: types.Message):
