@@ -13,21 +13,29 @@ shopping_list = ShoppingList()
 bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
 dp = Dispatcher(bot)
 
+users = [389552179, 400358789]
+
 button_new = KeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 button_del = KeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
 
 
+async def filterig_users(message: types.Message):
+    return message.chat.id not in users
+
+
 # Запустить OkmakBot
+@dp.message_handler(filterig_users)
 @dp.message_handler(commands='start')
 async def start(message: types.Message):
-    sleep(0.25)
-    button_1 = KeyboardButton('Добавить в список')
-    button_2 = KeyboardButton('Показать список')
-    button_4 = KeyboardButton('Показать все записи')
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(button_1, button_2)
-    markup.add(button_4)
-    await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
+    if message.chat.id in users:
+        sleep(0.25)
+        button_1 = KeyboardButton('Добавить в список')
+        button_2 = KeyboardButton('Показать список')
+        button_4 = KeyboardButton('Показать все записи')
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(button_1, button_2)
+        markup.add(button_4)
+        await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
 
 
 # Очистить чат
