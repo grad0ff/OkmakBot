@@ -1,3 +1,6 @@
+import config
+import pickle
+
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.dispatcher.filters import Text
@@ -6,11 +9,10 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
 from aiogram.utils import executor
 from time import sleep
 from shopping import ShoppingList
-import pickle
 
 shopping_list = ShoppingList()
 
-bot = Bot(token='1825854132:')
+bot = Bot(token=config.token)
 dp = Dispatcher(bot)
 
 users = [389552179, 400358789]
