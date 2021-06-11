@@ -10,7 +10,7 @@ import pickle
 
 shopping_list = ShoppingList()
 
-bot = Bot(token='1825854132:')
+bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
 dp = Dispatcher(bot)
 
 users = [389552179, 400358789]
