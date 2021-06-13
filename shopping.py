@@ -1,5 +1,3 @@
-
-
 class ShoppingList:
     COUNT = 0
 

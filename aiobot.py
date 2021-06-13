@@ -21,12 +21,12 @@ button_new = KeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 button_del = KeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
 
 
-async def filterig_users(message: types.Message):
+async def filtering_users(message: types.Message):
     return message.chat.id not in users
 
 
 # Запустить OkmakBot
-@dp.message_handler(filterig_users)
+@dp.message_handler(filtering_users)
 @dp.message_handler(commands='start')
 async def start(message: types.Message):
     if message.chat.id in users:
