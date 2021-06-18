@@ -33,10 +33,10 @@ async def start(message: types.Message):
         sleep(0.25)
         button_1 = KeyboardButton('Добавить в список')
         button_2 = KeyboardButton('Показать список')
-        button_4 = KeyboardButton('Показать все записи')
+        button_3 = KeyboardButton('Показать все записи')
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(button_1, button_2)
-        markup.add(button_4)
+        markup.add(button_3)
         await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
 
 
@@ -149,9 +149,9 @@ async def dif(call: types.CallbackQuery):
     print('DIF')
     shopping_list.delete_item(call.data[3:])
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C', cache_time=1)
+    save_data() 
     await del_item_forever(call)
     await call.answer()
-    save_data()
 
 
 # Фоновая обработка кнопки добавления новой записи
