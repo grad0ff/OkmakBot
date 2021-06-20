@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class ShoppingList:
     COUNT = 0
 
@@ -5,10 +8,12 @@ class ShoppingList:
         self.products = set()
         self.shoplist = set()
         self.not_added_list = set()
+        self.editing_datetime = None
         ShoppingList.COUNT += 1
 
     def update_data(self):
         self.not_added_list = self.products.difference(self.shoplist)
+        self.editing_datetime = datetime.now().strftime('%H:%M:%S %d.%m.%y')
 
     def add_to_shoplist(self, item):
         self.shoplist.add(item)

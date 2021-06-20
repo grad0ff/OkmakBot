@@ -1,4 +1,3 @@
-import config
 import pickle
 
 from aiogram import Bot, types
@@ -7,20 +6,21 @@ from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
-from time import sleep
+
 from shopping import ShoppingList
 
-shopping_list = ShoppingList()
-
-bot = Bot(token=config.token)
+bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
 dp = Dispatcher(bot)
 
 users = [389552179, 400358789]
 
-button_new = KeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
-button_del = KeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
+shopping_list = ShoppingList()
+
+button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
+button_del = InlineKeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
 
 
+# Фильтрация пользователей
 async def filtering_users(message: types.Message):
     return message.chat.id not in users
 
@@ -30,13 +30,12 @@ async def filtering_users(message: types.Message):
 @dp.message_handler(commands='start')
 async def start(message: types.Message):
     if message.chat.id in users:
-        sleep(0.25)
-        button_1 = KeyboardButton('Добавить в список')
-        button_2 = KeyboardButton('Показать список')
-        button_3 = KeyboardButton('Показать все записи')
+        button_add = KeyboardButton('Добавить в список')
+        button_lst = KeyboardButton('Показать список')
+        button_all = KeyboardButton('Показать все записи')
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add(button_1, button_2)
-        markup.add(button_3)
+        markup.add(button_add, button_lst)
+        markup.add(button_all)
         await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
 
 
@@ -49,7 +48,6 @@ async def clear_chat(message: types.Message):
 # Добавить товар в список покупок
 @dp.message_handler(regexp='Добавить в список')
 async def add_to_list(message: types.Message):
-    sleep(0.25)
     if shopping_list.not_added_list:
         markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
@@ -64,8 +62,6 @@ async def add_to_list(message: types.Message):
 # Фоновая обработка добавления записи в список покупок
 @dp.callback_query_handler(Text(startswith='ATL'))
 async def atl(call: types.CallbackQuery):
-    sleep(0.25)
-    print('ATL')
     shopping_list.add_to_shoplist(call.data[3:])
     await call.answer(f'Нужно купить:  {call.data[3:]} \U0001F44C')
     markup = InlineKeyboardMarkup()
@@ -82,11 +78,11 @@ async def atl(call: types.CallbackQuery):
 # Показать список покупок
 @dp.message_handler(regexp='Показать список')
 async def get_shopping_list(message: types.Message):
-    sleep(0.25)
     if shopping_list.shoplist:
         markup = InlineKeyboardMarkup()
         markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
-        await message.answer('Вот тебе список: \U0001F609', reply_markup=markup)
+        await message.answer(f'Вот тебе список! \U0001F609 \nРед. {shopping_list.editing_datetime}',
+                             reply_markup=markup)
     else:
         await message.answer('Список покупок пуст! \U0001F389')
 
@@ -94,14 +90,12 @@ async def get_shopping_list(message: types.Message):
 # Фоновая обработка показа списка покупок
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
-    sleep(0.25)
-    print('GSL')
     shopping_list.del_from_shoplist(call.data[3:])
     markup = InlineKeyboardMarkup()
     markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
     await call.answer(f'Куплено:  {call.data[3:]} \U0001F44C', cache_time=1)
     if shopping_list.shoplist:
-        await call.message.edit_text('Вот тебе список: \U0001F609', reply_markup=markup)
+        await call.message.edit_text('Вот тебе список! \U0001F609', reply_markup=markup)
     else:
         await call.message.edit_text('Список покупок пуст! \U0001F389')
     await call.answer()
@@ -111,7 +105,6 @@ async def gsl(call: types.CallbackQuery):
 # Показать все продукты
 @dp.message_handler(regexp='Показать все записи')
 async def show_all_list(message):
-    sleep(0.25)
     if shopping_list.get_all_items():
         markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.get_all_items(), 'SAL'))
@@ -124,7 +117,6 @@ async def show_all_list(message):
 # Фоновая обработка показа все записей
 @dp.callback_query_handler(Text(startswith='SAL'))
 async def gsl(call: types.CallbackQuery):
-    print('SAL')
     await call.answer('Выбери что-то другое? \U0001F9D0')
     await call.answer()
 
@@ -132,7 +124,6 @@ async def gsl(call: types.CallbackQuery):
 # Фоновая обработка кнопки удаления записи
 @dp.callback_query_handler(Text(startswith='del_item'))
 async def del_item_forever(call: types.CallbackQuery):
-    sleep(0.25)
     if shopping_list.get_all_items():
         markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.get_all_items(), 'DIF'))
@@ -145,11 +136,9 @@ async def del_item_forever(call: types.CallbackQuery):
 # Фоновая обработка удаления записи
 @dp.callback_query_handler(Text(startswith='DIF'))
 async def dif(call: types.CallbackQuery):
-    sleep(0.25)
-    print('DIF')
     shopping_list.delete_item(call.data[3:])
-    await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C', cache_time=1)
-    save_data() 
+    save_data()
+    await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C')
     await del_item_forever(call)
     await call.answer()
 
@@ -157,7 +146,6 @@ async def dif(call: types.CallbackQuery):
 # Фоновая обработка кнопки добавления новой записи
 @dp.callback_query_handler(Text(startswith='new_item'))
 async def add_new_item(call: types.CallbackQuery):
-    sleep(0.25)
     print('*НОВАЯ ЗАПИСЬ*')
     await call.message.edit_text('Просто напиши тут... \U0001F447')
     await call.answer()
@@ -166,7 +154,6 @@ async def add_new_item(call: types.CallbackQuery):
 # Фоновая обработка текста новой записи
 @dp.message_handler()
 async def ani(message: types.Message):
-    sleep(0.25)
     if message.text not in shopping_list.get_all_items():
         shopping_list.add_new_item(message.text)
         await message.answer(f'Добавлено: {message.text} \U0001F44C')
@@ -196,6 +183,6 @@ def load_data():
 
 
 if __name__ == '__main__':
-    load_data()
-    # save_data()
+    # load_data()
+    save_data()
     executor.start_polling(dp)
