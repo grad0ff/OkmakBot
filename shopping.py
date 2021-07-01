@@ -1,4 +1,8 @@
+import pytz
+
 from datetime import datetime
+
+tz_Moscow = pytz.timezone('Europe/Moscow')
 
 
 class ShoppingList:
@@ -13,7 +17,7 @@ class ShoppingList:
 
     def update_data(self):
         self.not_added_list = self.products.difference(self.shoplist)
-        self.editing_datetime = datetime.now().strftime('%H:%M:%S %d.%m.%y')
+        self.editing_datetime = datetime.now(tz_Moscow).strftime('%H:%M:%S %d.%m.')
 
     def add_to_shoplist(self, item):
         self.shoplist.add(item)

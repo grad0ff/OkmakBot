@@ -14,8 +14,6 @@ dp = Dispatcher(bot)
 
 users = [389552179, 400358789]
 
-shopping_list = ShoppingList()
-
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 button_del = InlineKeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
 
@@ -46,7 +44,7 @@ async def clear_chat(message: types.Message):
 
 
 # Добавить товар в список покупок
-@dp.message_handler(regexp='Добавить в список')
+@dp.message_handler(Text(equals='Добавить в список'))
 async def add_to_list(message: types.Message):
     if shopping_list.not_added_list:
         markup = InlineKeyboardMarkup()
@@ -76,7 +74,7 @@ async def atl(call: types.CallbackQuery):
 
 
 # Показать список покупок
-@dp.message_handler(regexp='Показать список')
+@dp.message_handler(Text(equals='Показать список'))
 async def get_shopping_list(message: types.Message):
     if shopping_list.shoplist:
         markup = InlineKeyboardMarkup()
@@ -103,7 +101,7 @@ async def gsl(call: types.CallbackQuery):
 
 
 # Показать все продукты
-@dp.message_handler(regexp='Показать все записи')
+@dp.message_handler(Text(equals='Показать все записи'))
 async def show_all_list(message):
     if shopping_list.get_all_items():
         markup = InlineKeyboardMarkup()
@@ -117,7 +115,7 @@ async def show_all_list(message):
 # Фоновая обработка показа все записей
 @dp.callback_query_handler(Text(startswith='SAL'))
 async def gsl(call: types.CallbackQuery):
-    await call.answer('Выбери что-то другое? \U0001F9D0')
+    await call.answer('Выбери что-то другое! \U0001F9D0')
     await call.answer()
 
 
@@ -137,9 +135,9 @@ async def del_item_forever(call: types.CallbackQuery):
 @dp.callback_query_handler(Text(startswith='DIF'))
 async def dif(call: types.CallbackQuery):
     shopping_list.delete_item(call.data[3:])
-    save_data()
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C')
     await del_item_forever(call)
+    save_data()
     await call.answer()
 
 
@@ -173,7 +171,7 @@ def display_btns(set_type, prefix):
 
 def save_data():
     with open('data.pkl', 'wb') as dumper:
-        pickle.dump(shopping_list, dumper, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(shopping_list, dumper)
 
 
 def load_data():
@@ -183,6 +181,9 @@ def load_data():
 
 
 if __name__ == '__main__':
-    # load_data()
-    save_data()
+    try:
+        load_data()
+    except:
+        shopping_list = ShoppingList()
+        save_data()
     executor.start_polling(dp)
