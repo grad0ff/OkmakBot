@@ -9,7 +9,7 @@ from aiogram.utils import executor
 
 from shopping import ShoppingList
 
-bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
+bot = Bot(token='')
 dp = Dispatcher(bot)
 
 users = [389552179, 400358789]
