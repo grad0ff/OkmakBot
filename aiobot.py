@@ -1,5 +1,3 @@
-import pickle
-
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.dispatcher.filters import Text
@@ -31,9 +29,10 @@ async def start(message: types.Message):
         button_add = KeyboardButton('Добавить в список')
         button_lst = KeyboardButton('Показать список')
         button_all = KeyboardButton('Показать все записи')
+        button_test = KeyboardButton('ТЕСТ')
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(button_add, button_lst)
-        markup.add(button_all)
+        markup.add(button_all, button_test)
         await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
 
 
@@ -78,8 +77,9 @@ async def get_shopping_list(message: types.Message):
     if shopping_list.shoplist:
         markup = InlineKeyboardMarkup()
         markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
-        await message.answer(f'Вот тебе список! \U0001F609 \nРед. {shopping_list.editing_datetime}',
-                             reply_markup=markup)
+        await message.answer(
+            f'Вот тебе список! \U0001F609 \nРед. {shopping_list.edit_datetime}',reply_markup=markup
+        )
     else:
         await message.answer('Список покупок пуст! \U0001F389')
 
@@ -115,6 +115,14 @@ async def show_all_list(message):
 async def gsl(call: types.CallbackQuery):
     await call.answer('Выбери что-то другое! \U0001F9D0')
     await call.answer()
+
+
+# тестирование
+@dp.message_handler(Text(equals='ТЕСТ'))
+async def testing(message):
+    print(shopping_list.products)
+    print(shopping_list.shoplist)
+    print(shopping_list.not_purchased_list)
 
 
 # Фоновая обработка кнопки удаления записи
@@ -163,6 +171,7 @@ def display_btns(set_type, prefix):
         button_item = InlineKeyboardButton(item, callback_data=prefix + item)
         btn_list.append(button_item)
     return btn_list
+
 
 if __name__ == '__main__':
     shopping_list = ShoppingList()

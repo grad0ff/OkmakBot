@@ -4,49 +4,58 @@ import pytz
 from datetime import datetime
 
 connection = sqlite3.connect('bot_db.db')
-cursor = connection.cursor()
+with connection:
+    cursor = connection.cursor()
 
 tz_Moscow = pytz.timezone('Europe/Moscow')
 
 
 class ShoppingList:
-    COUNT = 0
-
     def __init__(self):
-        cursor.execute("CREATE TABLE IF NOT EXISTS products (item, status)")
-        self.products = cursor.execute("SELECT item FROM products").fetchall()
-        self.shoplist = cursor.execute("SELECT item FROM products WHERE status = 'to purchase'").fetchall()
-        self.not_purchased_list = cursor.execute("SELECT item FROM products WHERE status = 'not purchased'").fetchall()
+        cursor.execute("CREATE TABLE IF NOT EXISTS products (item TEXT, status TEXT)")
+        self.update_data()
         self.edit_datetime = None
-        ShoppingList.COUNT += 1
 
+    # обновить все списки
     def update_data(self):
-        pass
-        # self.not_purchased_list = self.products.difference(self.shoplist)
-        # self.edit_datetime = datetime.now(tz_Moscow).strftime('%H:%M:%S %d.%m.')
+        self.products = list(
+            map(lambda x: x[0], cursor.execute("SELECT item FROM products").fetchall())
+        )
+        self.shoplist = list(
+            map(lambda x: x[0], cursor.execute("SELECT item FROM products WHERE status = 'to purchase'").fetchall())
+        )
+        self.not_purchased_list = list(
+            map(lambda x: x[0], cursor.execute("SELECT item FROM products WHERE status = 'not purchased'").fetchall())
+        )
+        self.edit_datetime = datetime.now(tz_Moscow).strftime('%H:%M: %d.%m.%y')
 
+    # добавить товар в список покупок
     def add_to_shoplist(self, item):
         cursor.execute(f"UPDATE products SET status = 'to purchase' WHERE item = {item}")
+        connection.commit()
         print('Добавлено в список: ', item)
         self.update_data()
 
+    # удалить товар из списка покупок
     def del_from_shoplist(self, item):
-        cursor.execute(f"DELETE FROM products
+        cursor.execute(f"UPDATE products SET status = 'not purchased' WHERE item = {item}")
         self.shoplist.remove(item)
         self.update_data()
         print('Удалено из списка: ', item)
 
-    def add_new_item(self, new_item):
-        cursor.execute(f"INSERT INTO products VALUES ({new_item}, 'to purchase')")
-        # self.add_to_shoplist(new_item)
+    # довать новый товар
+    def add_new_item(self, item):
+        if item not in self.products:
+            cursor.execute(f"INSERT INTO products VALUES ({item}, 'to purchase')")
+        connection.commit()
         self.update_data()
-        print('Добавлено в список и записи: ', new_item)
+        print('Добавлено в список и записи: ', item)
 
+    # удалить товар из БД
     def delete_item(self, item):
-        self.products.remove(item)
-        if item in self.shoplist:
-            self.shoplist.remove(item)
-            print('Удалено из записей: ', item)
+        cursor.execute(f"DELETE FROM products WHERE item = {item}")
+        connection.commit()
+        print('Удалено из записей: ', item)
         self.update_data()
 
     def get_all_items(self):
