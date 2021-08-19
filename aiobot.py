@@ -9,7 +9,7 @@ from aiogram.utils import executor
 
 from shopping import ShoppingList
 
-bot = Bot(token='1825854132:AAGdHn2rOseD9G8ky7V1XPpBzbrMYAqjNmw')
+bot = Bot(token='1916426348:AAHiQnXpPPOUug6mm9ncgvG4rhP1vDmjuEA')
 dp = Dispatcher(bot)
 
 users = [389552179, 400358789]
@@ -46,9 +46,9 @@ async def clear_chat(message: types.Message):
 # Добавить товар в список покупок
 @dp.message_handler(Text(equals='Добавить в список'))
 async def add_to_list(message: types.Message):
-    if shopping_list.not_added_list:
+    if shopping_list.not_purchased_list:
         markup = InlineKeyboardMarkup()
-        markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
+        markup.add(*display_btns(shopping_list.not_purchased_list, 'ATL'))
         markup.add(button_new)
         await message.answer('Что же нужно купить? \U0001F914', reply_markup=markup)
     else:
@@ -63,14 +63,13 @@ async def atl(call: types.CallbackQuery):
     shopping_list.add_to_shoplist(call.data[3:])
     await call.answer(f'Нужно купить:  {call.data[3:]} \U0001F44C')
     markup = InlineKeyboardMarkup()
-    markup.add(*display_btns(shopping_list.not_added_list, 'ATL'))
+    markup.add(*display_btns(shopping_list.not_purchased_list, 'ATL'))
     markup.add(button_new)
-    if shopping_list.not_added_list:
+    if shopping_list.not_purchased_list:
         await call.message.edit_text('Что же нужно купить? \U0001F914', reply_markup=markup)
     else:
         await call.message.edit_text('Выбирать не из чего... \U00002639', reply_markup=markup)
     await call.answer()
-    save_data()
 
 
 # Показать список покупок
@@ -97,7 +96,6 @@ async def gsl(call: types.CallbackQuery):
     else:
         await call.message.edit_text('Список покупок пуст! \U0001F389')
     await call.answer()
-    save_data()
 
 
 # Показать все продукты
@@ -137,7 +135,6 @@ async def dif(call: types.CallbackQuery):
     shopping_list.delete_item(call.data[3:])
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C')
     await del_item_forever(call)
-    save_data()
     await call.answer()
 
 
@@ -155,7 +152,6 @@ async def ani(message: types.Message):
     if message.text not in shopping_list.get_all_items():
         shopping_list.add_new_item(message.text)
         await message.answer(f'Добавлено: {message.text} \U0001F44C')
-        save_data()
     else:
         await message.answer(f'Не повторяйся! \U0000261D')
 
@@ -168,22 +164,6 @@ def display_btns(set_type, prefix):
         btn_list.append(button_item)
     return btn_list
 
-
-def save_data():
-    with open('data.pkl', 'wb') as dumper:
-        pickle.dump(shopping_list, dumper)
-
-
-def load_data():
-    global shopping_list
-    with open('data.pkl', 'rb') as loader:
-        shopping_list = pickle.load(loader)
-
-
 if __name__ == '__main__':
-    try:
-        load_data()
-    except:
-        shopping_list = ShoppingList()
-        save_data()
+    shopping_list = ShoppingList()
     executor.start_polling(dp)
