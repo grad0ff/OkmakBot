@@ -1,3 +1,5 @@
+import config
+
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.dispatcher.filters import Text
@@ -5,20 +7,21 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
 
-from shopping import ShoppingList
+from db_manage import ShoppingList, set_blocked_id
 
-bot = Bot(token='1916426348:AAHiQnXpPPOUug6mm9ncgvG4rhP1vDmjuEA')
+bot = Bot(token=config.token)
 dp = Dispatcher(bot)
 
-users = [389552179, 400358789]
-
+users = config.users
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
-button_del = InlineKeyboardButton('УДАЛИТЬ ЗАПИСЬ', callback_data='del_item')
 
 
 # Фильтрация пользователей
-async def filtering_users(message: types.Message):
-    return message.chat.id not in users
+async def filtering_users(message):
+    user = message.chat.id
+    if user not in users:
+        set_blocked_id(user, message.text)
+    return user not in users
 
 
 # Запустить OkmakBot
@@ -27,13 +30,18 @@ async def filtering_users(message: types.Message):
 async def start(message: types.Message):
     if message.chat.id in users:
         button_add = KeyboardButton('Добавить в список')
-        button_lst = KeyboardButton('Показать список')
         button_all = KeyboardButton('Показать все записи')
-        button_test = KeyboardButton('ТЕСТ')
+        button_lst = KeyboardButton('Показать список')
+        button_test = KeyboardButton('Удалить запись')
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(button_add, button_lst)
         markup.add(button_all, button_test)
         await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
+
+
+@dp.message_handler(Text(equals='admin'))
+async def show_blocked_IDs(message: types.Message):
+    await message.answer(shopping_list.blocked_id_list)
 
 
 # Очистить чат
@@ -78,7 +86,7 @@ async def get_shopping_list(message: types.Message):
         markup = InlineKeyboardMarkup()
         markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
         await message.answer(
-            f'Вот тебе список! \U0001F609 \nРед. {shopping_list.edit_datetime}',reply_markup=markup
+            f'Вот тебе список! \U0001F609 \nРед. {shopping_list.datetime}', reply_markup=markup
         )
     else:
         await message.answer('Список покупок пуст! \U0001F389')
@@ -104,37 +112,27 @@ async def show_all_list(message):
     if shopping_list.get_all_items():
         markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.get_all_items(), 'SAL'))
-        markup.add(button_del)
         await message.answer('Вот тебе все записи! \U0001F60E', reply_markup=markup)
     else:
-        await message.answer('А записей нет! \U0001F923')
+        await message.answer('А записей нет! \U0001F602')
 
 
 # Фоновая обработка показа все записей
 @dp.callback_query_handler(Text(startswith='SAL'))
 async def gsl(call: types.CallbackQuery):
-    await call.answer('Выбери что-то другое! \U0001F9D0')
+    await call.answer('Выбери другое действие! \U0001F9D0')
     await call.answer()
-
-
-# тестирование
-@dp.message_handler(Text(equals='ТЕСТ'))
-async def testing(message):
-    print(shopping_list.products)
-    print(shopping_list.shoplist)
-    print(shopping_list.not_purchased_list)
 
 
 # Фоновая обработка кнопки удаления записи
-@dp.callback_query_handler(Text(startswith='del_item'))
-async def del_item_forever(call: types.CallbackQuery):
+@dp.message_handler(Text(equals='Удалить запись'))
+async def del_item_forever(message: types.Message):
     if shopping_list.get_all_items():
         markup = InlineKeyboardMarkup()
         markup.add(*display_btns(shopping_list.get_all_items(), 'DIF'))
-        await call.message.edit_text('Что будем удалять? \U0001F62C', reply_markup=markup)
+        await message.answer('Что будем удалять? \U0001F62C', reply_markup=markup)
     else:
-        await call.message.edit_text('А записей нет! \U0001F923')
-    await call.answer()
+        await message.answer('Удалять нечего! \U0001F923')
 
 
 # Фоновая обработка удаления записи
@@ -142,7 +140,7 @@ async def del_item_forever(call: types.CallbackQuery):
 async def dif(call: types.CallbackQuery):
     shopping_list.delete_item(call.data[3:])
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C')
-    await del_item_forever(call)
+    await del_item_forever(call.message)
     await call.answer()
 
 
@@ -156,7 +154,7 @@ async def add_new_item(call: types.CallbackQuery):
 
 # Фоновая обработка текста новой записи
 @dp.message_handler()
-async def ani(message: types.Message):
+async def add_new_item(message: types.Message):
     if message.text not in shopping_list.get_all_items():
         shopping_list.add_new_item(message.text)
         await message.answer(f'Добавлено: {message.text} \U0001F44C')
