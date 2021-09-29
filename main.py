@@ -1,3 +1,5 @@
+import datetime
+
 import config
 
 from aiogram import Bot, types
@@ -7,12 +9,14 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
 
+import db_manage
 from db_manage import ShoppingList, set_blocked_id
 
 bot = Bot(token=config.token)
 dp = Dispatcher(bot)
 
 users = config.users
+
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 
 
@@ -45,9 +49,14 @@ async def show_blocked_IDs(message: types.Message):
 
 
 # Очистить чат
-@dp.message_handler(commands='clear')
+@dp.message_handler(commands='clear_chat')
 async def clear_chat(message: types.Message):
-    await message.answer('Пока вообще никак! \U0001F61C')
+    dt = db_manage.get_datetime()
+    print(dt)
+    # message.chat.message_auto_delete_time = datetime.time
+    # await bot.delete_message(message.)
+    await message.answer('Ощищено! \U0001F61C')
+    # await message.answer('Пока вообще никак! \U0001F61C')
 
 
 # Добавить товар в список покупок
@@ -109,9 +118,9 @@ async def gsl(call: types.CallbackQuery):
 # Показать все продукты
 @dp.message_handler(Text(equals='Показать все записи'))
 async def show_all_list(message):
-    if shopping_list.get_all_items():
+    if shopping_list.products:
         markup = InlineKeyboardMarkup()
-        markup.add(*display_btns(shopping_list.get_all_items(), 'DIF'))
+        markup.add(*display_btns(shopping_list.products, 'DIF'))
         await message.answer(
             'Вот тебе все записи! \U0001F60E \n'
             'Для удаления записи нажми на элемент... \U0001F447', reply_markup=markup
@@ -125,8 +134,8 @@ async def show_all_list(message):
 async def dif(call: types.CallbackQuery):
     shopping_list.delete_item(call.data[3:])
     markup = InlineKeyboardMarkup()
-    markup.add(*(display_btns(shopping_list.shoplist, 'DIF')))
-    if shopping_list.get_all_items():
+    markup.add(*(display_btns(shopping_list.products, 'DIF')))
+    if shopping_list.products:
         await call.message.edit_text(f'Удалено из записей: {call.data[3:]} \U0001F44C', reply_markup=markup)
     else:
         await call.message.edit_text('Удалять нечего! \U0001F923')
@@ -144,7 +153,7 @@ async def add_new_item(call: types.CallbackQuery):
 @dp.message_handler(filtering_users)
 @dp.message_handler()
 async def add_new_item(message: types.Message):
-    if message.text not in shopping_list.get_all_items():
+    if message.text not in shopping_list.products:
         shopping_list.add_new_item(message.text)
         await message.answer(f'Добавлено: {message.text} \U0001F44C')
     else:

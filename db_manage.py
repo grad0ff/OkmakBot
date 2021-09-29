@@ -3,7 +3,7 @@ import pytz
 
 from datetime import datetime
 
-connection = sqlite3.connect('bot_db.db')
+connection = sqlite3.connect('/dir/okmak_data/bot_db.db')
 with connection:
     cursor = connection.cursor()
 
@@ -54,9 +54,6 @@ class ShoppingList:
         cursor.execute(f"DELETE FROM products WHERE item = '{item}'")
         connection.commit()
         self.update_data()
-
-    def get_all_items(self):
-        return self.products
 
 
 def set_blocked_id(user_id, text):
