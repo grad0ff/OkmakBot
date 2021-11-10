@@ -1,5 +1,3 @@
-import datetime
-
 import config
 
 from aiogram import Bot, types
@@ -9,13 +7,18 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
 
-import db_manage
-from db_manage import ShoppingList, set_blocked_id
+# import db_manage
+from db_manage import ShoppingList, ToDoList, BlockedUsers
 
 bot = Bot(token=config.token)
 dp = Dispatcher(bot)
-
 users = config.users
+
+shoppinglist = ShoppingList()
+todo_list = ToDoList()
+current_table = shoppinglist
+
+blocked_list = BlockedUsers()
 
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 
@@ -24,103 +27,107 @@ button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_
 async def filtering_users(message):
     user = message.chat.id
     if user not in users:
-        set_blocked_id(user, message.text)
+        blocked_list.set_blocked_id(user, message.text)
     return user not in users
 
 
 # Запустить OkmakBot
 @dp.message_handler(filtering_users)
 @dp.message_handler(commands='start')
+@dp.message_handler(Text(startswith='Выход из'))
 async def start(message: types.Message):
-    global bot_status
     if message.chat.id in users:
-        button_add = KeyboardButton('Добавить в список')
-        button_all = KeyboardButton('Показать все записи')
-        button_lst = KeyboardButton('Показать список')
+        button_shop = KeyboardButton('Покупки')
+        button_todo = KeyboardButton('Дела')
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add(button_add, button_lst)
-        markup.add(button_all)
-        await message.answer('Всегда готов! \U0001F44D', reply_markup=markup)
+        markup.add(button_shop)
+        markup.add(button_todo)
+        await message.answer('Всегда готов! \U0001F44D \nВыбери нужный раздел.', reply_markup=markup)
 
 
-@dp.message_handler(Text(equals='admin'))
-async def show_blocked_IDs(message: types.Message):
-    await message.answer(shopping_list.blocked_id_list)
+# Выбрать вид
+@dp.message_handler(Text(equals=['Покупки', 'Дела']))
+async def start(message: types.Message):
+    global current_table
+    if message.text == 'Покупки':
+        current_table = shoppinglist
+        message.text = 'Покупок'
+    elif message.text == 'Дела':
+        current_table = todo_list
+        message.text = 'Дел'
+    button_add = KeyboardButton('Внести в список')
+    button_lst = KeyboardButton('Показать список')
+    button_all = KeyboardButton('Показать всё')
+    button_exit = KeyboardButton(f'Выход из {message.text}')
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+
+    markup.add(button_add, button_lst)
+    markup.add(button_all, button_exit)
+    await message.answer('Выбери действие \U0001F44D', reply_markup=markup)
 
 
-# Очистить чат
-@dp.message_handler(commands='clear_chat')
-async def clear_chat(message: types.Message):
-    dt = db_manage.get_datetime()
-    print(dt)
-    # message.chat.message_auto_delete_time = datetime.time
-    # await bot.delete_message(message.)
-    await message.answer('Ощищено! \U0001F61C')
-    # await message.answer('Пока вообще никак! \U0001F61C')
-
-
-# Добавить товар в список покупок
-@dp.message_handler(Text(equals='Добавить в список'))
+# Добавить в список
+@dp.message_handler(Text(equals='Внести в список'))
 async def add_to_list(message: types.Message):
-    if shopping_list.not_purchased_list:
+    if current_table.not_in_actual_list:
         markup = InlineKeyboardMarkup()
-        markup.add(*display_btns(shopping_list.not_purchased_list, 'ATL'))
+        markup.add(*display_btns(current_table.not_in_actual_list, 'ATL'))
         markup.add(button_new)
-        await message.answer('Что же нужно купить? \U0001F914', reply_markup=markup)
+        await message.answer('Что нужно добавить? \U0001F914', reply_markup=markup)
     else:
         markup = InlineKeyboardMarkup()
         markup.add(button_new)
         await message.answer('Выбирать не из чего... \U00002639', reply_markup=markup)
 
 
-# Фоновая обработка добавления записи в список покупок
+# Фоновая обработка добавления записи в список
 @dp.callback_query_handler(Text(startswith='ATL'))
 async def atl(call: types.CallbackQuery):
-    shopping_list.add_to_shoplist(call.data[3:])
-    await call.answer(f'Нужно купить:  {call.data[3:]} \U0001F44C')
+    current_table.add_to_shoplist(call.data[3:])
+    await call.answer(f'Нужно:  {call.data[3:]} \U0001F44C')
     markup = InlineKeyboardMarkup()
-    markup.add(*display_btns(shopping_list.not_purchased_list, 'ATL'))
+    markup.add(*display_btns(current_table.not_in_actual_list, 'ATL'))
     markup.add(button_new)
-    if shopping_list.not_purchased_list:
-        await call.message.edit_text('Что же нужно купить? \U0001F914', reply_markup=markup)
+    if current_table.not_in_actual_list:
+        await call.message.edit_text('Что нужно добавить? \U0001F914', reply_markup=markup)
     else:
         await call.message.edit_text('Выбирать не из чего... \U00002639', reply_markup=markup)
     await call.answer()
 
 
-# Показать список покупок
+# Показать список
 @dp.message_handler(Text(equals='Показать список'))
-async def get_shopping_list(message: types.Message):
-    if shopping_list.shoplist:
+async def get_current_table(message: types.Message):
+    if current_table.actual_list:
         markup = InlineKeyboardMarkup()
-        markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
+        markup.add(*(display_btns(current_table.actual_list, 'GSL')))
         await message.answer(
-            f'Вот тебе список! \U0001F609 \nРед. {shopping_list.datetime}', reply_markup=markup
+            f'Вот список! \U0001F609 \nРед. {current_table.datetime}', reply_markup=markup
         )
     else:
-        await message.answer('Список покупок пуст! \U0001F389')
+        await message.answer('Список пуст! \U0001F389')
 
 
-# Фоновая обработка показа списка покупок
+# Фоновая обработка показа списка
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
-    shopping_list.del_from_shoplist(call.data[3:])
+    current_table.del_from_shoplist(call.data[3:])
     markup = InlineKeyboardMarkup()
-    markup.add(*(display_btns(shopping_list.shoplist, 'GSL')))
-    await call.answer(f'Куплено:  {call.data[3:]} \U0001F44C', cache_time=1)
-    if shopping_list.shoplist:
-        await call.message.edit_text('Вот тебе список! \U0001F609', reply_markup=markup)
+    markup.add(*(display_btns(current_table.actual_list, 'GSL')))
+    await call.answer(f'Уже не нужно:  {call.data[3:]} \U0001F44C', cache_time=1)
+    if current_table.actual_list:
+        await call.message.edit_text('Вот список! \U0001F609', reply_markup=markup)
     else:
-        await call.message.edit_text('Список покупок пуст! \U0001F389')
+        await call.message.edit_text('Список пуст! \U0001F389')
     await call.answer()
 
 
-# Показать все продукты
-@dp.message_handler(Text(equals='Показать все записи'))
+# Показать все записи
+@dp.message_handler(Text(equals='Показать всё'))
 async def show_all_list(message):
-    if shopping_list.products:
+    if current_table.all_items:
         markup = InlineKeyboardMarkup()
-        markup.add(*display_btns(shopping_list.products, 'DIF'))
+        markup.add(*display_btns(current_table.all_items, 'DIF'))
         await message.answer(
             'Вот тебе все записи! \U0001F60E \n'
             'Для удаления записи нажми на элемент... \U0001F447', reply_markup=markup
@@ -132,10 +139,10 @@ async def show_all_list(message):
 # Фоновая обработка удаления записи
 @dp.callback_query_handler(Text(startswith='DIF'))
 async def dif(call: types.CallbackQuery):
-    shopping_list.delete_item(call.data[3:])
+    current_table.delete_item(call.data[3:])
     markup = InlineKeyboardMarkup()
-    markup.add(*(display_btns(shopping_list.products, 'DIF')))
-    if shopping_list.products:
+    markup.add(*(display_btns(current_table.all_items, 'DIF')))
+    if current_table.all_items:
         await call.message.edit_text(f'Удалено из записей: {call.data[3:]} \U0001F44C', reply_markup=markup)
     else:
         await call.message.edit_text('Удалять нечего! \U0001F923')
@@ -144,7 +151,7 @@ async def dif(call: types.CallbackQuery):
 
 # Фоновая обработка кнопки добавления новой записи
 @dp.callback_query_handler(Text(startswith='new_item'))
-async def add_new_item(call: types.CallbackQuery):
+async def add_new(call: types.CallbackQuery):
     await call.message.edit_text('Просто напиши тут... \U0001F447')
     await call.answer()
 
@@ -153,22 +160,36 @@ async def add_new_item(call: types.CallbackQuery):
 @dp.message_handler(filtering_users)
 @dp.message_handler()
 async def add_new_item(message: types.Message):
-    if message.text not in shopping_list.products:
-        shopping_list.add_new_item(message.text)
+    if message.text not in current_table.all_items:
+        current_table.add_new_item(message.text)
         await message.answer(f'Добавлено: {message.text} \U0001F44C')
     else:
         await message.answer(f'Не повторяйся! \U0000261D')
 
 
+@dp.message_handler(Text(equals='blocked'))
+async def show_blocked_IDs(message: types.Message):
+    await message.answer(blocked_list.get_blocked())
+
+
+# Очистить чат
+@dp.message_handler(commands='clear_chat')
+async def clear_chat(message: types.Message):
+    # dt = db_manage.get_datetime()
+    # message.chat.message_auto_delete_time = datetime.time
+    # await bot.delete_message(message.)
+    await message.answer('Ощищено! \U0001F61C')
+    # await message.answer('Пока вообще никак! \U0001F61C')
+
+
 # Доп. функция. Формирует список кнопок из передаваемого множества
 def display_btns(set_type, prefix):
     btn_list = []
-    for item in sorted(set_type):
-        button_item = InlineKeyboardButton(item, callback_data=prefix + item)
+    for i in sorted(set_type):
+        button_item = InlineKeyboardButton(i, callback_data=prefix + i)
         btn_list.append(button_item)
     return btn_list
 
 
 if __name__ == '__main__':
-    shopping_list = ShoppingList()
     executor.start_polling(dp)
