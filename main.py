@@ -42,7 +42,10 @@ async def start(message: types.Message):
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(button_shop)
         markup.add(button_todo)
-        await message.answer('Всегда готов! \U0001F44D \nВыбери нужный раздел.', reply_markup=markup)
+        txt = ''
+        if not message.text.startswith('Выход из'):
+            txt = 'Всегда готов! \U0001F44D \n'
+        await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2 ', reply_markup=markup)
 
 
 # Выбрать вид
@@ -63,7 +66,7 @@ async def start(message: types.Message):
 
     markup.add(button_add, button_lst)
     markup.add(button_all, button_exit)
-    await message.answer('Выбери действие \U0001F44D', reply_markup=markup)
+    await message.answer('Выбери действие \U000027A1', reply_markup=markup)
 
 
 # Добавить в список
@@ -172,14 +175,14 @@ async def show_blocked_IDs(message: types.Message):
     await message.answer(blocked_list.get_blocked())
 
 
-# Очистить чат
-@dp.message_handler(commands='clear_chat')
-async def clear_chat(message: types.Message):
-    # dt = db_manage.get_datetime()
-    # message.chat.message_auto_delete_time = datetime.time
-    # await bot.delete_message(message.)
-    await message.answer('Ощищено! \U0001F61C')
-    # await message.answer('Пока вообще никак! \U0001F61C')
+# # Очистить чат
+# @dp.message_handler(commands='clear_chat')
+# async def clear_chat(message: types.Message):
+#     # dt = db_manage.get_datetime()
+#     # message.chat.message_auto_delete_time = datetime.time
+#     # await bot.delete_message(message.)
+#     await message.answer('Ощищено! \U0001F61C')
+#     # await message.answer('Пока вообще никак! \U0001F61C')
 
 
 # Доп. функция. Формирует список кнопок из передаваемого множества
