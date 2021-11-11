@@ -3,8 +3,8 @@ import pytz
 
 from datetime import datetime
 
-# connection = sqlite3.connect('/dir/okmak_data/bot_db.db')
-connection = sqlite3.connect('bot_db.db')
+connection = sqlite3.connect('/dir/okmak_data/bot_db.db')
+# connection = sqlite3.connect('bot_db.db')
 
 with connection:
     cursor = connection.cursor()
@@ -13,7 +13,7 @@ with connection:
 class Main:
     def __init__(self, table_name):
         self.table_name = table_name
-        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        # cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (item TEXT, status TEXT)")
         self.update_data()
 
