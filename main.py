@@ -19,8 +19,8 @@ blocked_list = BlockedUsers()
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 current_table = None
 rows_count = 2
-status = 'Куплено'
-action = 'купить'
+status = ''
+action = ''
 
 
 # Фильтрация пользователей
@@ -53,7 +53,7 @@ async def start(message: types.Message):
 
 # Выбрать вид
 @dp.message_handler(Text(equals=['Покупки', 'Дела']))
-async def start(message: types.Message):
+async def select(message: types.Message):
     global current_table, rows_count, status, action
     button_exit_txt = ''
     if message.text == 'Покупки':
@@ -211,3 +211,5 @@ def display_btns(set_type, prefix):
 
 if __name__ == '__main__':
     executor.start_polling(dp)
+
+# qPUt63z9

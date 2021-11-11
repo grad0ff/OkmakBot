@@ -3,8 +3,8 @@ import pytz
 
 from datetime import datetime
 
-connection = sqlite3.connect('/dir/okmak_data/bot_db.db')
-# connection = sqlite3.connect('bot_db.db')
+# connection = sqlite3.connect('/dir/okmak_data/bot_db.db')
+connection = sqlite3.connect('bot_db.db')
 
 with connection:
     cursor = connection.cursor()
@@ -34,13 +34,13 @@ class Main:
 
     # добавить товар в список покупок
     def add_to_shoplist(self, item):
-        cursor.execute(f"UPDATE {self.table_name} SET status = 'actual' WHERE item = {item}")
+        cursor.execute(f"UPDATE {self.table_name} SET status = 'actual' WHERE item = '{item}'")
         connection.commit()
         self.update_data()
 
     # удалить товар из списка покупок
     def del_from_shoplist(self, item):
-        cursor.execute(f"UPDATE {self.table_name} SET status = 'not_actual' WHERE item = {item}")
+        cursor.execute(f"UPDATE {self.table_name} SET status = 'not_actual' WHERE item = '{item}'")
         self.actual_list.remove(item)
         self.update_data()
 
@@ -53,7 +53,7 @@ class Main:
 
     # удалить товар из БД
     def delete_item(self, item):
-        cursor.execute(f"DELETE FROM {self.table_name} WHERE item = {item}")
+        cursor.execute(f"DELETE FROM {self.table_name} WHERE item = '{item}'")
         connection.commit()
         self.update_data()
 
@@ -77,7 +77,7 @@ class BlockedUsers():
         cursor.execute("CREATE TABLE IF NOT EXISTS blocked_users (userID INTEGER, datetime, msg_text)")
 
     def set_blocked_id(self, user_id, text):
-        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, {get_datetime()}, {text})")
+        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, '{get_datetime()}', '{text}')")
         connection.commit()
 
     def get_blocked(self):
