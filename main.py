@@ -85,21 +85,11 @@ async def add_to_list(message: types.Message):
     await message.answer(msg_data['text'], reply_markup=msg_data['markup'])
 
 
-# Обработка добавления элемента в список покупок/дел
-@dp.callback_query_handler(Text(startswith='ATL'))
-async def atl(call: types.CallbackQuery):
-    current_table.add_to_shoplist(call.data[3:])
-    await call.answer(f'Нужно {action}:  {call.data[3:]} \U0001F44C')
-    msg_data = handling_add()
-    await call.message.edit_text(msg_data['text'], reply_markup=msg_data['markup'])
-    await call.answer()
-
-
 # Отображение раздела добавления элементов в список покупок/дел
 def handling_add():
     data = dict()
     markup = InlineKeyboardMarkup(row_width=rows_count)
-    markup.add(*display_btns(current_table.not_in_actual_list, 'ATL'))
+    markup.add(*display_btns(current_table.not_in_actual_list))
     markup.add(button_new)
     data['markup'] = markup
     if current_table.not_in_actual_list:
@@ -117,21 +107,11 @@ async def get_current_table(message: types.Message):
     await message.answer(msg_data['text'], reply_markup=msg_data['markup'])
 
 
-# Обработка удаления элемента из списка покупок/дел
-@dp.callback_query_handler(Text(startswith='GSL'))
-async def gsl(call: types.CallbackQuery):
-    current_table.del_from_shoplist(call.data[3:])
-    await call.answer(f'{status}:  {call.data[3:]} \U0001F44C', cache_time=1)
-    msg_data = handling_show()
-    await call.message.edit_text(msg_data['text'], reply_markup=msg_data['markup'])
-    await call.answer()
-
-
 # Отображение раздела покупок/дел
 def handling_show():
     data = dict()
-    markup = InlineKeyboardMarkup(row_width=rows_count, )
-    markup.add(*(display_btns(current_table.actual_list, 'GSL')))
+    markup = InlineKeyboardMarkup(row_width=rows_count)
+    markup.add(*(display_btns(current_table.actual_list)))
     data['markup'] = markup
     if current_table.actual_list:
         text = f'Вот список! \U0001F609 \nРед. {current_table.datetime}'
@@ -148,22 +128,11 @@ async def show_all_list(message):
     await message.answer(msg_data['text'], reply_markup=msg_data['markup'])
 
 
-# Обработка удаления элемента из БД
-@dp.callback_query_handler(Text(startswith='DIF'))
-async def dif(call: types.CallbackQuery):
-    current_table.delete_item(call.data[3:])
-    await call.answer(f'Удалено:  {call.data[3:]} \U0001F44C', cache_time=1)
-
-    msg_data = handling_show_all()
-    await call.message.edit_text(msg_data['text'], reply_markup=msg_data['markup'])
-    await call.answer()
-
-
 # Отображение раздела со всеми записями из БД
 def handling_show_all():
     data = dict()
     markup = InlineKeyboardMarkup(row_width=rows_count)
-    markup.add(*display_btns(current_table.all_items, 'DIF'))
+    markup.add(*display_btns(current_table.all_items))
     data['markup'] = markup
     if current_table.all_items:
         text = 'Вот все записи! \U0001F60E \nДля удаления элемента нажми на него... \U0001F447'
@@ -171,6 +140,45 @@ def handling_show_all():
         text = 'А записей нет! \U0001F602'
     data['text'] = text
     return data
+
+
+@dp.callback_query_handler(Text(equals='1'))
+async def get_items(call: types.CallbackQuery):
+    item = call.message.text
+    print(item, status)
+    if item in current_table.not_in_actual_list:
+        print('add')
+        current_table.add_to_shoplist(item)
+        await call.answer(f'Нужно {action}:  {call.data[3:]} \U0001F44C')
+        markup = InlineKeyboardMarkup()
+        markup.add(*display_btns(current_table.not_in_actual_list))
+        markup.add(button_new)
+        if current_table.not_in_actual_list:
+            await call.message.edit_text('Что нужно добавить? \U0001F914', reply_markup=markup)
+        else:
+            await call.message.edit_text('Выбирать не из чего... \U00002639', reply_markup=markup)
+        await call.answer()
+    elif item in current_table.actual_list:
+        print('del')
+        current_table.del_from_shoplist(item)
+        markup = InlineKeyboardMarkup()
+        markup.add(*(display_btns(current_table.actual_list)))
+        await call.answer(f'Уже не нужно:  {call.data[3:]} \U0001F44C', cache_time=1)
+        if current_table.actual_list:
+            await call.message.edit_text('Вот список! \U0001F609', reply_markup=markup)
+        else:
+            await call.message.edit_text('Список пуст! \U0001F389')
+        await call.answer()
+    else:
+        print('rm')
+        current_table.delete_item(item)
+        markup = InlineKeyboardMarkup()
+        markup.add(*(display_btns(current_table.all_items)))
+        if current_table.all_items:
+            await call.message.edit_text(f'Удалено из записей: {call.data[3:]} \U0001F44C', reply_markup=markup)
+        else:
+            await call.message.edit_text('Удалять нечего! \U0001F923')
+        await call.answer()
 
 
 # Обработка нажатия кнопки добавления новой записи
@@ -201,10 +209,11 @@ async def show_blocked_IDs(message: types.Message):
 
 
 # Доп. функция. Формирует список кнопок из передаваемого множества
-def display_btns(set_type, prefix):
+def display_btns(set_type):
     btn_list = []
     for i in sorted(set_type):
-        button_item = InlineKeyboardButton(i, callback_data=prefix + i)
+        button_item = InlineKeyboardButton(text=i, callback_data='1')
+        print(button_item.callback_data)
         btn_list.append(button_item)
     return btn_list
 
