@@ -11,7 +11,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
 from aiogram.utils import executor
 from db_manage import ShoppingList, ToDoList, BlockedUsers
 
-logging.basicConfig(filename='log.txt', filemode='w')
+logging.basicConfig(filename=config.log_path, filemode='w')
 
 bot = Bot(token=config.token)
 dp = Dispatcher(bot)
@@ -21,7 +21,6 @@ shoppinglist = ShoppingList()
 todo_list = ToDoList()
 blocked_list = BlockedUsers()
 current_table = None
-
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 rows_count = 2
 
@@ -37,27 +36,28 @@ async def filtering_users(message):
 # Запустить OkmakBot
 @dp.message_handler(filtering_users)
 @dp.message_handler(commands='start')
+async def run_chat_timer(message: types.Message):
+    await start_chat(message)
+    global current_table
+    current_table = None
+    await asyncio.sleep(300)
+    await bot.send_message(message.chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
+                           disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+
+
+# @dp.message_handler(commands='start')
 @dp.message_handler(Text(startswith='Выход из'))
-async def start(message: types.Message):
+async def start_chat(message: types.Message):
     global current_table
     if message.chat.id in users:
-        markup = await get_start()
+        markup = await get_start_kb()
         txt = ''
         if not message.text.startswith('Выход из'):
             txt = 'Всегда готов! \U0001F44D \n'
         await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2', reply_markup=markup)
-        await close_chat(message.chat)
 
 
-async def close_chat(chat):
-    global current_table
-    current_table = None
-    await asyncio.sleep(300)
-    await bot.send_message(chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
-                           disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
-
-
-async def get_start():
+async def get_start_kb():
     button_shop = KeyboardButton('Покупки')
     button_todo = KeyboardButton('Дела')
     markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
@@ -68,7 +68,7 @@ async def get_start():
 
 # Выбрать вид
 @dp.message_handler(Text(equals=['Покупки', 'Дела']))
-async def start(message: types.Message):
+async def select_type(message: types.Message):
     global current_table, rows_count
     if message.text == 'Покупки':
         current_table = shoppinglist
@@ -185,11 +185,8 @@ async def add_new(call: types.CallbackQuery):
 async def add_new_item(message: types.Message):
     global current_table
     if current_table is None:
-        markup = await get_start()
-        await message.answer(f'Сначала выбери нужный раздел!  \U000026A0')
-        await message.answer(f'Сначала выбери нужный раздел \U0001F4C2', allow_sending_without_reply=True,
-                             disable_notification=True, reply_markup=markup)
-
+        markup = await get_start_kb()
+        await message.answer(f'Сначала выбери нужный раздел \U0001F4C2', reply_markup=markup)
     elif sys.getsizeof(message.text) > 100:
         await message.answer(f'Слишком много слов! \nДавай покороче... \U0001F612')
     elif message.text not in current_table.all_items:

@@ -1,11 +1,10 @@
 import sqlite3
 import pytz
+import config
 
 from datetime import datetime
 
-# connection = sqlite3.connect('/dir/okmak_data/bot_db.db')
-connection = sqlite3.connect('bot_db.db')
-
+connection = sqlite3.connect(config.db_path)
 with connection:
     cursor = connection.cursor()
 
