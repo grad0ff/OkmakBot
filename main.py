@@ -1,6 +1,7 @@
 import asyncio
 import config
 import sys
+import logging
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -10,15 +11,16 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
 from aiogram.utils import executor
 from db_manage import ShoppingList, ToDoList, BlockedUsers
 
+logging.basicConfig(filename='log.txt', filemode='w')
+
 bot = Bot(token=config.token)
 dp = Dispatcher(bot)
 users = config.users
 
 shoppinglist = ShoppingList()
 todo_list = ToDoList()
-current_table = None
-
 blocked_list = BlockedUsers()
+current_table = None
 
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 
@@ -39,7 +41,7 @@ async def start(message: types.Message):
     global current_table
     if message.chat.id in users:
         await get_start(message)
-        await asyncio.sleep(30)
+        await asyncio.sleep(300)
         current_table = None
         await get_start(message)
 

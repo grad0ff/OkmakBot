@@ -32,7 +32,7 @@ CMD ['python3', 'main.py']
 sudo docker build -t okmakbot_img .
 
 - запуск контейнера
-sudo docker run -it --restart=always -e DIRECTORY='/home/projects/okmakbot' -v /home/projects/okmakbot/:/dir okmakbot_img python3 /dir/main.py
+sudo docker run -it --restart=unless-stopped -e DIRECTORY='/home/projects/okmakbot' -v /home/projects/okmakbot/:/dir okmakbot_img python3 /dir/main.py
 
 
 # sudo docker run -d --restart=unless-stopped -v /home/projects/okmakbot/:/dir okmakbot_img python3 /dir/main.py
