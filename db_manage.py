@@ -13,7 +13,7 @@ with connection:
 class Main:
     def __init__(self, table_name):
         self.table_name = table_name
-        # cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (item TEXT, status TEXT)")
         self.update_data()
 
@@ -77,7 +77,7 @@ class BlockedUsers():
         cursor.execute("CREATE TABLE IF NOT EXISTS blocked_users (userID INTEGER, datetime, msg_text)")
 
     def set_blocked_id(self, user_id, text):
-        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, '{get_datetime()}', '{text}')")
+        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, {get_datetime()}, {text})")
         connection.commit()
 
     def get_blocked(self):
