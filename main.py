@@ -1,6 +1,6 @@
 import asyncio
-
-import config, sys
+import config
+import sys
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -8,8 +8,6 @@ from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
-
-# import db_manage
 from db_manage import ShoppingList, ToDoList, BlockedUsers
 
 bot = Bot(token=config.token)
