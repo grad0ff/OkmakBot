@@ -7,7 +7,7 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
-    InlineKeyboardMarkup, InlineKeyboardButton
+    InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.utils import executor
 from db_manage import ShoppingList, ToDoList, BlockedUsers
 
@@ -23,6 +23,7 @@ blocked_list = BlockedUsers()
 current_table = None
 
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
+rows_count = 2
 
 
 # Фильтрация пользователей
@@ -40,34 +41,43 @@ async def filtering_users(message):
 async def start(message: types.Message):
     global current_table
     if message.chat.id in users:
-        await get_start(message)
-        await asyncio.sleep(300)
-        current_table = None
-        await get_start(message)
+        markup = await get_start()
+        txt = ''
+        if not message.text.startswith('Выход из'):
+            txt = 'Всегда готов! \U0001F44D \n'
+        await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2', reply_markup=markup)
+        await close_chat(message.chat)
 
 
-async def get_start(message):
+async def close_chat(chat):
+    global current_table
+    current_table = None
+    await asyncio.sleep(300)
+    await bot.send_message(chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
+                           disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+
+
+async def get_start():
     button_shop = KeyboardButton('Покупки')
     button_todo = KeyboardButton('Дела')
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
     markup.add(button_shop)
     markup.add(button_todo)
-    txt = ''
-    if not message.text.startswith('Выход из'):
-        txt = 'Всегда готов! \U0001F44D \n'
-    await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2 ', reply_markup=markup)
+    return markup
 
 
 # Выбрать вид
 @dp.message_handler(Text(equals=['Покупки', 'Дела']))
 async def start(message: types.Message):
-    global current_table
+    global current_table, rows_count
     if message.text == 'Покупки':
         current_table = shoppinglist
         message.text = 'Покупок'
+        rows_count = 2
     elif message.text == 'Дела':
         current_table = todo_list
         message.text = 'Дел'
+        rows_count = 1
     button_add = KeyboardButton('Внести в список')
     button_lst = KeyboardButton('Показать список')
     button_all = KeyboardButton('Показать всё')
@@ -83,7 +93,7 @@ async def start(message: types.Message):
 @dp.message_handler(Text(equals='Внести в список'))
 async def add_to_list(message: types.Message):
     if current_table.not_in_actual_list:
-        markup = InlineKeyboardMarkup()
+        markup = InlineKeyboardMarkup(row_width=rows_count)
         markup.add(*display_btns(current_table.not_in_actual_list, 'ATL'))
         markup.add(button_new)
         await message.answer('Что нужно добавить? \U0001F914', reply_markup=markup)
@@ -98,7 +108,7 @@ async def add_to_list(message: types.Message):
 async def atl(call: types.CallbackQuery):
     current_table.add_to_shoplist(call.data[3:])
     await call.answer(f'Нужно:  {call.data[3:]} \U0001F44C')
-    markup = InlineKeyboardMarkup()
+    markup = InlineKeyboardMarkup(row_width=rows_count)
     markup.add(*display_btns(current_table.not_in_actual_list, 'ATL'))
     markup.add(button_new)
     if current_table.not_in_actual_list:
@@ -112,7 +122,7 @@ async def atl(call: types.CallbackQuery):
 @dp.message_handler(Text(equals='Показать список'))
 async def get_current_table(message: types.Message):
     if current_table.actual_list:
-        markup = InlineKeyboardMarkup()
+        markup = InlineKeyboardMarkup(row_width=rows_count)
         markup.add(*(display_btns(current_table.actual_list, 'GSL')))
         await message.answer(
             f'Вот список! \U0001F609 \nРед. {current_table.datetime}', reply_markup=markup
@@ -125,7 +135,7 @@ async def get_current_table(message: types.Message):
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
     current_table.del_from_shoplist(call.data[3:])
-    markup = InlineKeyboardMarkup()
+    markup = InlineKeyboardMarkup(row_width=rows_count)
     markup.add(*(display_btns(current_table.actual_list, 'GSL')))
     await call.answer(f'Уже не нужно:  {call.data[3:]} \U0001F44C', cache_time=1)
     if current_table.actual_list:
@@ -139,7 +149,7 @@ async def gsl(call: types.CallbackQuery):
 @dp.message_handler(Text(equals='Показать всё'))
 async def show_all_list(message):
     if current_table.all_items:
-        markup = InlineKeyboardMarkup()
+        markup = InlineKeyboardMarkup(row_width=rows_count)
         markup.add(*display_btns(current_table.all_items, 'DIF'))
         await message.answer(
             'Вот тебе все записи! \U0001F60E \n'
@@ -153,7 +163,7 @@ async def show_all_list(message):
 @dp.callback_query_handler(Text(startswith='DIF'))
 async def dif(call: types.CallbackQuery):
     current_table.delete_item(call.data[3:])
-    markup = InlineKeyboardMarkup()
+    markup = InlineKeyboardMarkup(row_width=rows_count)
     markup.add(*(display_btns(current_table.all_items, 'DIF')))
     if current_table.all_items:
         await call.message.edit_text(f'Удалено из записей: {call.data[3:]} \U0001F44C', reply_markup=markup)
@@ -175,7 +185,11 @@ async def add_new(call: types.CallbackQuery):
 async def add_new_item(message: types.Message):
     global current_table
     if current_table is None:
+        markup = await get_start()
         await message.answer(f'Сначала выбери нужный раздел!  \U000026A0')
+        await message.answer(f'Сначала выбери нужный раздел \U0001F4C2', allow_sending_without_reply=True,
+                             disable_notification=True, reply_markup=markup)
+
     elif sys.getsizeof(message.text) > 100:
         await message.answer(f'Слишком много слов! \nДавай покороче... \U0001F612')
     elif message.text not in current_table.all_items:
