@@ -40,7 +40,8 @@ async def run_chat_timer(message: types.Message):
     await start_chat(message)
     global current_table
     current_table = None
-    await asyncio.sleep(300)
+    await asyncio.sleep(600)
+    current_table = None
     await bot.send_message(message.chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
                            disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
 
@@ -215,7 +216,10 @@ async def show_blocked_IDs(message: types.Message):
 def display_btns(set_type, prefix):
     btn_list = []
     for i in sorted(set_type):
-        button_item = InlineKeyboardButton(i, callback_data=prefix + i)
+        if prefix == "DIF":
+            button_item = InlineKeyboardButton('< ' + i + ' >', callback_data=prefix + i)
+        else:
+            button_item = InlineKeyboardButton(i, callback_data=prefix + i)
         btn_list.append(button_item)
     return btn_list
 
