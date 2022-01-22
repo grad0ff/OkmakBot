@@ -1,8 +1,7 @@
 import sqlite3
-import pytz
 import config
 
-from datetime import datetime
+from services import Services
 
 connection = sqlite3.connect(config.db_path)
 with connection:
@@ -29,7 +28,7 @@ class Main:
             map(lambda x: x[0],
                 cursor.execute(f"SELECT item FROM {self.table_name} WHERE status = 'not_actual'").fetchall())
         )
-        self.datetime = get_datetime()
+        self.datetime = Services.get_datetime()
 
     # добавить товар в список покупок
     def add_to_shoplist(self, item):
@@ -73,18 +72,19 @@ class ToDoList(Main):
 
 class BlockedUsers():
     def __init__(self):
-        cursor.execute("CREATE TABLE IF NOT EXISTS blocked_users (userID INTEGER, datetime, msg_text)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS blocked_users (userID INTEGER, datetime TEXT, msg_text TEXT)")
 
-    def set_blocked_id(self, user_id, text):
-        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, {get_datetime()}, {text})")
+    @staticmethod
+    def set_blocked_id(user_id, text):
+        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, {Services.get_datetime()}, {repr(text)})")
         connection.commit()
 
-    def get_blocked(self):
-        self.blocked_id_list = list(
-            map(lambda x: x[0], cursor.execute(f"SELECT * FROM blocked_users").fetchall())
-        )
+    @staticmethod
+    def get_blocked():
+        blocked_list = cursor.execute(f"SELECT * FROM blocked_users").fetchall()
+        return blocked_list
 
-
-def get_datetime():
-    tz_Moscow = pytz.timezone('Europe/Moscow')
-    return datetime.now(tz_Moscow).strftime('%H:%M %d.%m.%y')
+    @staticmethod
+    def clear_list():
+        cursor.execute("DELETE FROM blocked_users")
+        connection.commit()

@@ -1,7 +1,7 @@
 import asyncio
-import config
 import sys
 import logging
+import zipfile
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -10,61 +10,70 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.utils import executor
 from db_manage import ShoppingList, ToDoList, BlockedUsers
+from config import *
 
-logging.basicConfig(filename=config.log_path, filemode='w')
-
-bot = Bot(token=config.token)
+logging.basicConfig(filename=log_file, filemode='w')
+bot = Bot(token=token)
 dp = Dispatcher(bot)
-users = config.users
+users_list = list(users.values())
 
-shoppinglist = ShoppingList()
+shopping_list = ShoppingList()
 todo_list = ToDoList()
-blocked_list = BlockedUsers()
 current_table = None
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 rows_count = 2
 
 
 # Фильтрация пользователей
-async def filtering_users(message):
-    user = message.chat.id
-    if user not in users:
-        blocked_list.set_blocked_id(user, message.text)
-    return user not in users
+async def filtering_users(message: types.Message):
+    user = message.from_user.id
+    if user not in users_list:
+        BlockedUsers.set_blocked_id(user, message.text)
+    else:
+        return message
 
 
 # Запустить OkmakBot
-@dp.message_handler(filtering_users)
-@dp.message_handler(commands='start')
-async def run_chat_timer(message: types.Message):
-    await start_chat(message)
+@dp.message_handler(filtering_users, commands='start')
+async def run_chat(message: types.Message):
     global current_table
-    current_table = None
+    await message.answer(f'Всегда готов! \U0001F44D \n')
+    await asyncio.sleep(0.25)
+    await start_chat(message)
     await asyncio.sleep(600)
     current_table = None
-    await bot.send_message(message.chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
-                           disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+    # await bot.send_message(message.chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
+    #                        disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+    last_msg = await bot.send_message(message.chat.id, text='Всё! \nЯ спать... \U0001F634',
+                                      allow_sending_without_reply=True,
+                                      disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+    await last_msg.delete()
 
 
-# @dp.message_handler(commands='start')
 @dp.message_handler(Text(startswith='Выход из'))
 async def start_chat(message: types.Message):
     global current_table
-    if message.chat.id in users:
-        markup = await get_start_kb()
-        txt = ''
-        if not message.text.startswith('Выход из'):
-            txt = 'Всегда готов! \U0001F44D \n'
-        await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2', reply_markup=markup)
-
-
-async def get_start_kb():
+    current_table = None
     button_shop = KeyboardButton('Покупки')
     button_todo = KeyboardButton('Дела')
     markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
     markup.add(button_shop)
     markup.add(button_todo)
-    return markup
+
+    # markup = await get_start_kb()
+    # txt = ''
+    # if not message.text.startswith('Выход из'):
+    # await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2', reply_markup=markup)
+    await message.answer(f'Выбери нужный раздел \U0001F4C2', reply_markup=markup)
+
+
+# async def get_start_kb():
+#     button_shop = KeyboardButton('Покупки')
+#     button_todo = KeyboardButton('Дела')
+#     markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
+#     markup.add(button_shop)
+#     markup.add(button_todo)
+#     return markup
 
 
 # Выбрать вид
@@ -72,7 +81,7 @@ async def get_start_kb():
 async def select_type(message: types.Message):
     global current_table, rows_count
     if message.text == 'Покупки':
-        current_table = shoppinglist
+        current_table = shopping_list
         message.text = 'Покупок'
         rows_count = 2
     elif message.text == 'Дела':
@@ -180,26 +189,44 @@ async def add_new(call: types.CallbackQuery):
     await call.answer()
 
 
+@dp.message_handler(filtering_users, commands='blocked')
+async def show_blocked_users(message: types.Message):
+    blocked = BlockedUsers.get_blocked()
+    markup = InlineKeyboardMarkup()
+    clear_btn = InlineKeyboardMarkup(text='Очистить список', callback_data='clear_blocked')
+    markup.add(clear_btn)
+    for item in blocked:
+        msg = f'id:  {item[0]}\n' \
+              f'datetime:  {item[1]}\n' \
+              f'message:  {item[2]}'
+        await message.answer(msg)
+    await message.answer(text='0', reply_markup=markup)
+
+
+@dp.message_handler(filtering_users, commands='log')
+async def show_blocked_users(message: types.Message):
+    await message.answer_document( )
+
+
+@dp.callback_query_handler(Text(equals='clear_blocked'))
+async def clear_blocked_list(call: types.CallbackQuery):
+    BlockedUsers.clear_list()
+    await call.message.delete()
+
+
 # Фоновая обработка текста новой записи
 @dp.message_handler(filtering_users)
-@dp.message_handler()
 async def add_new_item(message: types.Message):
     global current_table
     if current_table is None:
-        markup = await get_start_kb()
-        await message.answer(f'Сначала выбери нужный раздел \U0001F4C2', reply_markup=markup)
-    elif sys.getsizeof(message.text) > 100:
+        await start_chat(message)
+    elif sys.getsizeof(message.text) > 128:
         await message.answer(f'Слишком много слов! \nДавай покороче... \U0001F612')
     elif message.text not in current_table.all_items:
         current_table.add_new_item(message.text)
         await message.answer(f'Добавлено: {message.text} \U0001F44C')
     else:
         await message.answer(f'Не повторяйся! \U0000261D')
-
-
-@dp.message_handler(Text(equals='blocked'))
-async def show_blocked_IDs(message: types.Message):
-    await message.answer(blocked_list.get_blocked())
 
 
 # # Очистить чат
