@@ -109,7 +109,7 @@ async def add_to_list(message: types.Message):
 # Фоновая обработка добавления записи в список
 @dp.callback_query_handler(Text(startswith='ATL'))
 async def atl(call: types.CallbackQuery):
-    current_table.add_to_shoplist(call.data[3:])
+    current_table.add_to_list(call.data[3:])
     await call.answer(f'Нужно:  {call.data[3:]} \U0001F44C')
     not_actual_list = current_table.get_notactual_list()
     await request_service(call, not_actual_list, 'ATL')
@@ -125,7 +125,7 @@ async def get_current_table(message: types.Message):
 # Фоновая обработка удаления записи из списка
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
-    current_table.del_from_shoplist(call.data[3:])
+    current_table.del_from_list(call.data[3:])
     await call.answer(f'Уже не нужно:  {call.data[3:]} \U0001F44C', cache_time=1)
     current_list = current_table.get_actual_list()
     await request_service(call, current_list, 'GSL')
@@ -187,7 +187,7 @@ async def get_answer_type(msg):
 async def get_markup(current_list, list_code):
     """ Возвращает разметку кнопок """
     if current_list:
-        btn_list = display_btns(current_list, list_code)
+        btn_list = get_btns(current_list, list_code)
         markup = InlineKeyboardMarkup(row_width=rows_count)
         markup.add(*btn_list)
         return markup
@@ -255,13 +255,14 @@ async def add_new_item(message: types.Message):
 
 
 # Доп. функция. Формирует список кнопок из передаваемого множества
-def display_btns(set_type, prefix):
+def get_btns(set_type, prefix):
     global rows_count
     long_txt_flag = False
     btn_list = []
     for item in sorted(set_type):
         txt_size = sys.getsizeof(item)
-        long_txt_flag = txt_size > 100 and True
+        print('Текст: ', txt_size)
+        long_txt_flag = (txt_size > 100) and True
         if prefix == "DIF":
             button_item = InlineKeyboardButton('< ' + item + ' >', callback_data=prefix + item)
         else:
@@ -271,6 +272,7 @@ def display_btns(set_type, prefix):
         rows_count = 1
     else:
         rows_count = 2
+    print(rows_count)
     return btn_list
 
 

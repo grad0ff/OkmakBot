@@ -43,15 +43,14 @@ class Main:
         return actual_list
 
     # добавить товар в список покупок
-    def add_to_shoplist(self, item):
+    def add_to_list(self, item):
         cursor.execute(f"UPDATE {self.table_name} SET status = 'actual' WHERE item = '{item}'")
         connection.commit()
         self.update_data()
 
     # удалить товар из списка покупок
-    def del_from_shoplist(self, item):
+    def del_from_list(self, item):
         cursor.execute(f"UPDATE {self.table_name} SET status = 'not_actual' WHERE item = '{item}'")
-        # self.get_actual_list().remove(item)
         self.update_data()
 
     # добавить новый товар

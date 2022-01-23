@@ -2,3 +2,7 @@ config.py
 bot_db.db
 log.txt
 log.zip
+
+/venv
+/static
+/.handler-saves
