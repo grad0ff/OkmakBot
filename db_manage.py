@@ -13,22 +13,34 @@ class Main:
         self.table_name = table_name
         # cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (item TEXT, status TEXT)")
-        self.update_data()
+        self._actual_list = self._notactual_list = self._all_items = self.updated_datetime = None
+        # self.update_data()
 
     # обновить все списки
     def update_data(self):
-        self.all_items = list(
+        self.get_actual_list()
+        self.get_notactual_list()
+        self.get_all_list()
+        self.updated_datetime = Services.get_datetime()
+
+    def get_all_list(self):
+        all_items = list(
             map(lambda x: x[0], cursor.execute(f"SELECT item FROM {self.table_name}").fetchall())
         )
-        self.actual_list = list(
-            map(lambda x: x[0],
-                cursor.execute(f"SELECT item FROM {self.table_name} WHERE status = 'actual'").fetchall())
-        )
-        self.not_in_actual_list = list(
+        return all_items
+
+    def get_notactual_list(self):
+        notactual_list = list(
             map(lambda x: x[0],
                 cursor.execute(f"SELECT item FROM {self.table_name} WHERE status = 'not_actual'").fetchall())
         )
-        self.datetime = Services.get_datetime()
+        return notactual_list
+
+    def get_actual_list(self):
+        actual_list = list(
+            map(lambda x: x[0],
+                cursor.execute(f"SELECT item FROM {self.table_name} WHERE status = 'actual'").fetchall()))
+        return actual_list
 
     # добавить товар в список покупок
     def add_to_shoplist(self, item):
@@ -39,12 +51,12 @@ class Main:
     # удалить товар из списка покупок
     def del_from_shoplist(self, item):
         cursor.execute(f"UPDATE {self.table_name} SET status = 'not_actual' WHERE item = '{item}'")
-        self.actual_list.remove(item)
+        # self.get_actual_list().remove(item)
         self.update_data()
 
     # добавить новый товар
     def add_new_item(self, item):
-        if item not in self.all_items:
+        if item not in self.get_all_list():
             cursor.execute(f"INSERT INTO {self.table_name} VALUES ('{item}', 'actual')")
         connection.commit()
         self.update_data()
