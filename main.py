@@ -11,7 +11,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
 from aiogram.utils import executor
 from db_manage import ShoppingList, ToDoList, BlockedUsers
 
-# logging.basicConfig(filename=config.log_file, filemode='w')
+logging.basicConfig(filename=config.log_file, filemode='w')
 
 bot = Bot(token=config.token)
 dp = Dispatcher(bot)
@@ -40,10 +40,9 @@ async def run_chat(message: types.Message):
     await message.answer(f'Всегда готов! \U0001F44D \n')
     await asyncio.sleep(0.25)
     await start_chat(message)
-    await asyncio.sleep(600)
+
+    await asyncio.sleep(config.timer)
     current_table = None
-    # await bot.send_message(message.chat.id, 'Всё! \nЯ спать... \U0001F634', allow_sending_without_reply=True,
-    #                        disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
     last_msg = await bot.send_message(message.chat.id, text='Всё! \nЯ спать... \U0001F634',
                                       allow_sending_without_reply=True,
                                       disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
@@ -59,24 +58,10 @@ async def start_chat(message: types.Message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
     markup.add(button_shop)
     markup.add(button_todo)
-
-    # markup = await get_start_kb()
-    # txt = ''
-    # if not message.text.startswith('Выход из'):
-    # await message.answer(f'{txt}Выбери нужный раздел \U0001F4C2', reply_markup=markup)
     await message.answer(f'Выбери нужный раздел \U0001F4C2', reply_markup=markup)
 
 
-# async def get_start_kb():
-#     button_shop = KeyboardButton('Покупки')
-#     button_todo = KeyboardButton('Дела')
-#     markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
-#     markup.add(button_shop)
-#     markup.add(button_todo)
-#     return markup
-
-
-# Выбрать вид
+# Выбрать вид списка
 @dp.message_handler(Text(equals=['Покупки', 'Дела']))
 async def select_type(message: types.Message):
     global current_table, rows_count
@@ -145,6 +130,16 @@ async def dif(call: types.CallbackQuery):
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C', cache_time=2)
     current_list = current_table.get_all_list()
     await request_service(call, current_list, 'DIF')
+
+
+# Очистить чат
+@dp.message_handler(commands='clear')
+async def clear_chat(message: types.Message):
+    # dt = db_manage.get_datetime()
+    # message.chat.message_auto_delete_time = datetime.time
+    # await bot.delete_message(message.)
+    await message.answer('Ощищено! \U0001F61C')
+    # await message.answer('Пока вообще никак! \U0001F61C')
 
 
 async def request_service(request, current_list, code):
@@ -236,22 +231,16 @@ async def add_new_item(message: types.Message):
     if current_table is None:
         return await start_chat(message)
     txt_size = sys.getsizeof(message.text)
+    msg_txt = None
     if txt_size > 128:
-        return await message.answer(f'Слишком много слов! \nДавай покороче... \U0001F612')
-    if message.text not in current_table.get_all_list():
+        await message.answer(f'Слишком много слов! \n'
+                             f'Давай покороче... \U0001F612')
+    elif message.text not in current_table.get_all_list():
         current_table.add_new_item(message.text)
-        return await message.answer(f'Добавлено: {message.text} \U0001F44C')
-    await message.answer(f'Не повторяйся! \U0000261D')
-
-
-# # Очистить чат
-# @dp.message_handler(commands='clear_chat')
-# async def clear_chat(message: types.Message):
-#     # dt = db_manage.get_datetime()
-#     # message.chat.message_auto_delete_time = datetime.time
-#     # await bot.delete_message(message.)
-#     await message.answer('Ощищено! \U0001F61C')
-#     # await message.answer('Пока вообще никак! \U0001F61C')
+        msg_txt = f'Добавлено: {message.text} \U0001F44C '
+    else:
+        msg_txt = f'Не повторяйся! \U0000261D'
+    await message.answer(msg_txt)
 
 
 # Доп. функция. Формирует список кнопок из передаваемого множества
@@ -261,7 +250,6 @@ def get_btns(set_type, prefix):
     btn_list = []
     for item in sorted(set_type):
         txt_size = sys.getsizeof(item)
-        print('Текст: ', txt_size)
         long_txt_flag = (txt_size > 100) and True
         if prefix == "DIF":
             button_item = InlineKeyboardButton('< ' + item + ' >', callback_data=prefix + item)
@@ -272,7 +260,6 @@ def get_btns(set_type, prefix):
         rows_count = 1
     else:
         rows_count = 2
-    print(rows_count)
     return btn_list
 
 
