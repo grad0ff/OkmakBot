@@ -1,7 +1,7 @@
 import asyncio
 import sys
 import logging
-import zipfile
+import config
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
@@ -10,12 +10,11 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.utils import executor
 from db_manage import ShoppingList, ToDoList, BlockedUsers
-from config import *
 
-logging.basicConfig(filename=log_file, filemode='w')
-bot = Bot(token=token)
+logging.basicConfig(filename=config.log_file, filemode='w')
+bot = Bot(token=config.token)
 dp = Dispatcher(bot)
-users_list = list(users.values())
+users_list = list(config.users.values())
 
 shopping_list = ShoppingList()
 todo_list = ToDoList()
