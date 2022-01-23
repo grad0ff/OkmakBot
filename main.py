@@ -250,7 +250,8 @@ def get_btns(set_type, prefix):
     btn_list = []
     for item in sorted(set_type):
         txt_size = sys.getsizeof(item)
-        long_txt_flag = (txt_size > 100) and True
+        if txt_size > 100:
+            long_txt_flag = True
         if prefix == "DIF":
             button_item = InlineKeyboardButton('< ' + item + ' >', callback_data=prefix + item)
         else:
