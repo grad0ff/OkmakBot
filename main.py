@@ -19,7 +19,7 @@ users_list = list(config.users.values())
 
 shopping_list = ShoppingList()
 todo_list = ToDoList()
-current_table = ShoppingList()
+current_table = None
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 rows_count = 2
 
