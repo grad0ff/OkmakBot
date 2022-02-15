@@ -162,7 +162,7 @@ async def get_answer_txt(current_list, list_code):
     if list_code == 'GSL':
         # сообщения для списка актуальных записей
         if current_list:
-            return 'Вот список! \U0001F609 '
+            return 'Вот список! \U0001F609 \n' f'Ред. {current_table.updated_datetime}'
         return 'Список пуст! \U0001F389 '
     if list_code == 'DIF':
         # сообщения для списка всех записей
