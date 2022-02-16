@@ -19,5 +19,5 @@ class Services():
     @staticmethod
     def get_datetime():
         tz_Moscow = pytz.timezone('Europe/Moscow')
-        timestamp = repr(datetime.now(tz_Moscow).strftime("%H:%M %d.%m.%y"))
+        timestamp = (datetime.now(tz_Moscow).strftime("%H:%M %d.%m.%y"))
         return timestamp

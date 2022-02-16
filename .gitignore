@@ -6,3 +6,4 @@ log.zip
 /venv
 /static
 /.handler-saves
+/.idea
