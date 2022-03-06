@@ -43,9 +43,7 @@ async def run_chat(message: types.Message):
 
     await asyncio.sleep(config.timer)
     current_table = None
-    last_msg = await bot.send_message(message.chat.id, text='Всё! \nЯ спать... \U0001F634',
-                                      allow_sending_without_reply=True,
-                                      disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+    last_msg = await start_chat(message)
     await last_msg.delete()
 
 
@@ -130,16 +128,6 @@ async def dif(call: types.CallbackQuery):
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C', cache_time=2)
     current_list = current_table.get_all_list()
     await request_service(call, current_list, 'DIF')
-
-
-# Очистить чат
-@dp.message_handler(commands='clear')
-async def clear_chat(message: types.Message):
-    # dt = db_manage.get_datetime()
-    # message.chat.message_auto_delete_time = datetime.time
-    # await bot.delete_message(message.)
-    await message.answer('Ощищено! \U0001F61C')
-    # await message.answer('Пока вообще никак! \U0001F61C')
 
 
 async def request_service(request, current_list, code):
