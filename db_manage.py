@@ -13,15 +13,7 @@ class Main:
         self.table_name = table_name
         # cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (item TEXT, status TEXT)")
-        self._actual_list = self._notactual_list = self._all_items = self.updated_datetime = None
-        # self.update_data()
-
-    # обновить все списки
-    def update_data(self):
-        self.get_actual_list()
-        self.get_notactual_list()
-        self.get_all_list()
-        self.updated_datetime = Services.get_datetime()
+        self._actual_list = self._notactual_list = self._all_items = self.updated_time = None
 
     def get_all_list(self):
         all_items = list(
@@ -46,25 +38,27 @@ class Main:
     def add_to_list(self, item):
         cursor.execute(f"UPDATE {self.table_name} SET status = 'actual' WHERE item = '{item}'")
         connection.commit()
-        self.update_data()
+        self.set_timestamp()
 
     # удалить товар из списка покупок
     def del_from_list(self, item):
         cursor.execute(f"UPDATE {self.table_name} SET status = 'not_actual' WHERE item = '{item}'")
-        self.update_data()
+        self.set_timestamp()
 
     # добавить новый товар
     def add_new_item(self, item):
         if item not in self.get_all_list():
             cursor.execute(f"INSERT INTO {self.table_name} VALUES ('{item}', 'actual')")
         connection.commit()
-        self.update_data()
+        self.set_timestamp()
 
     # удалить товар из БД
     def delete_item(self, item):
         cursor.execute(f"DELETE FROM {self.table_name} WHERE item = '{item}'")
         connection.commit()
-        self.update_data()
+
+    def set_timestamp(self):
+        self.updated_time = Services.get_datetime()
 
 
 class ShoppingList(Main):

@@ -43,9 +43,7 @@ async def run_chat(message: types.Message):
 
     await asyncio.sleep(config.timer)
     current_table = None
-    last_msg = await bot.send_message(message.chat.id, text='Всё! \nЯ спать... \U0001F634',
-                                      allow_sending_without_reply=True,
-                                      disable_notification=True, reply_markup=ReplyKeyboardRemove(True))
+    last_msg = await start_chat(message)
     await last_msg.delete()
 
 
@@ -132,16 +130,6 @@ async def dif(call: types.CallbackQuery):
     await request_service(call, current_list, 'DIF')
 
 
-# Очистить чат
-@dp.message_handler(commands='clear')
-async def clear_chat(message: types.Message):
-    # dt = db_manage.get_datetime()
-    # message.chat.message_auto_delete_time = datetime.time
-    # await bot.delete_message(message.)
-    await message.answer('Ощищено! \U0001F61C')
-    # await message.answer('Пока вообще никак! \U0001F61C')
-
-
 async def request_service(request, current_list, code):
     """ Менеджер запросов """
     answer = await get_answer_type(request)
@@ -162,7 +150,7 @@ async def get_answer_txt(current_list, list_code):
     if list_code == 'GSL':
         # сообщения для списка актуальных записей
         if current_list:
-            return 'Вот список! \U0001F609 \n' f'Ред. {current_table.updated_datetime}'
+            return 'Вот список! \U0001F609 \n' f'Ред. в {current_table.updated_time}'
         return 'Список пуст! \U0001F389 '
     if list_code == 'DIF':
         # сообщения для списка всех записей
