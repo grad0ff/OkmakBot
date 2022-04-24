@@ -9,6 +9,7 @@ from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.utils import executor
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from db_manage import ShoppingList, ToDoList, BlockedUsers
 
 logging.basicConfig(filename=config.log_file, filemode='w')
@@ -24,8 +25,9 @@ button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_
 rows_count = 2
 
 
-# Фильтрация пользователей
 async def filtering_users(message: types.Message):
+    """ Фильтрует сообщения и возвращает их если пользователь в списке зарегистрированных,
+    иначе вносит в таблицу незарегистрированных пользователей в БД"""
     user = message.from_user.id
     if user not in users_list:
         BlockedUsers.set_blocked_id(user, message.text)
@@ -33,60 +35,55 @@ async def filtering_users(message: types.Message):
         return message
 
 
-# Запустить OkmakBot
 @dp.message_handler(filtering_users, commands='start')
-async def run_chat(message: types.Message):
+@dp.message_handler(Text(startswith='Выход из'))
+async def start_chat(message: types.Message):
+    """ Запускает бота и основное меню """
     global current_table
+    current_table = None
     await message.answer(f'Всегда готов! \U0001F44D \n')
-    await asyncio.sleep(0.25)
-    await start_chat(message)
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
+    markup.add(KeyboardButton('Покупки'))
+    markup.add(KeyboardButton('Дела'))
+    await message.answer(f'Выбери нужный раздел \U0001F4C2', reply_markup=markup)
 
     await asyncio.sleep(config.timer)
     current_table = None
-    last_msg = await start_chat(message)
-    await last_msg.delete()
-
-
-@dp.message_handler(Text(startswith='Выход из'))
-async def start_chat(message: types.Message):
-    global current_table
-    current_table = None
-    button_shop = KeyboardButton('Покупки')
-    button_todo = KeyboardButton('Дела')
-    markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
-    markup.add(button_shop)
-    markup.add(button_todo)
-    await message.answer(f'Выбери нужный раздел \U0001F4C2', reply_markup=markup)
+    await message.answer(f'Я спать... \U0001F634', reply_markup=markup, disable_notification=True, )
 
 
 # Выбрать вид списка
 @dp.message_handler(Text(equals=['Покупки', 'Дела']))
-async def select_type(message: types.Message):
+async def select_table(message: types.Message):
     global current_table, rows_count
+    back_btn_txt = ''
     if message.text == 'Покупки':
         current_table = shopping_list
-        message.text = 'Покупок'
+        back_btn_txt = 'Покупок'
         rows_count = 2
     elif message.text == 'Дела':
         current_table = todo_list
-        message.text = 'Дел'
+        back_btn_txt = 'Дел'
         rows_count = 1
-    button_add = KeyboardButton('Внести в список')
-    button_lst = KeyboardButton('Показать список')
-    button_all = KeyboardButton('Показать всё')
-    button_exit = KeyboardButton(f'Выход из {message.text}')
-    markup = ReplyKeyboardMarkup(resize_keyboard=True)
 
-    markup.add(button_add, button_lst)
-    markup.add(button_all, button_exit)
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(KeyboardButton('Внести в список'), KeyboardButton('Показать список'))
+    markup.add(KeyboardButton('Показать всё'), KeyboardButton(f'Выход из {back_btn_txt}'))
     await message.answer('Выбери действие \U000027A1', reply_markup=markup)
 
 
-# Добавить запись в список
-@dp.message_handler(Text(equals='Внести в список'))
+@dp.message_handler(Text(equals=['Внести в список', 'Показать список', 'Показать всё']))
 async def add_to_list(message: types.Message):
-    not_actual_list = current_table.get_notactual_list()
-    await request_service(message, not_actual_list, 'ATL')
+    if message.text == 'Внести в список':
+        current_list = current_table.get_notactual_list()
+        mark = 'ATL'
+    elif message.text == 'Показать список':
+        current_list = current_table.get_actual_list()
+        mark = 'GSL'
+    elif message.text == 'Показать всё':
+        current_list = current_table.get_all_list()
+        mark = 'DIF'
+    await request_service(message, current_list, mark)
 
 
 # Фоновая обработка добавления записи в список
@@ -98,13 +95,6 @@ async def atl(call: types.CallbackQuery):
     await request_service(call, not_actual_list, 'ATL')
 
 
-# Показать список записей
-@dp.message_handler(Text(equals='Показать список'))
-async def get_current_table(message: types.Message):
-    current_list = current_table.get_actual_list()
-    await request_service(message, current_list, 'GSL')
-
-
 # Фоновая обработка удаления записи из списка
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
@@ -112,13 +102,6 @@ async def gsl(call: types.CallbackQuery):
     await call.answer(f'Уже не нужно:  {call.data[3:]} \U0001F44C', cache_time=1)
     current_list = current_table.get_actual_list()
     await request_service(call, current_list, 'GSL')
-
-
-# Показать все записи
-@dp.message_handler(Text(equals='Показать всё'))
-async def show_all_list(message):
-    current_list = current_table.get_all_list()
-    await request_service(message, current_list, 'DIF')
 
 
 # Фоновая обработка удаления записи
@@ -140,6 +123,14 @@ async def request_service(request, current_list, code):
     await answer(text=txt, reply_markup=markup)
 
 
+async def get_answer_type(msg):
+    """ Возвращает тип ответа """
+    if isinstance(msg, types.Message):
+        return msg.answer
+    elif isinstance(msg, types.CallbackQuery):
+        return msg.message.edit_text
+
+
 async def get_answer_txt(current_list, list_code):
     """ Возвращает текст сообщения"""
     if list_code == 'ATL':
@@ -157,14 +148,6 @@ async def get_answer_txt(current_list, list_code):
         if current_list:
             return 'Что нужно удалить? \U0001F914 '
         return 'Удалять нечего! \U0001F923'
-
-
-async def get_answer_type(msg):
-    """ Возвращает тип ответа"""
-    if isinstance(msg, types.Message):
-        return msg.answer
-    elif isinstance(msg, types.CallbackQuery):
-        return msg.message.edit_text
 
 
 async def get_markup(current_list, list_code):
