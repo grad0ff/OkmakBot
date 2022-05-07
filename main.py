@@ -224,7 +224,7 @@ def get_btns(set_type, prefix):
         if txt_size > 100:
             long_txt_flag = True
         if prefix == "DIF":
-            button_item = InlineKeyboardButton('< ' + item + ' >', callback_data=prefix + item)
+            button_item = InlineKeyboardButton('\U0000274C  ' + item, callback_data=prefix + item)
         else:
             button_item = InlineKeyboardButton(item, callback_data=prefix + item)
         btn_list.append(button_item)
