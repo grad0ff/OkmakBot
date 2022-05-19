@@ -21,10 +21,10 @@ dp = Dispatcher(bot, storage=storage)
 
 users = list(config.users.values())
 
-shopping_list = Shopping
-todo_list = ToDo
-blocked_list = Blocked
-current_table = None
+shopping_list = Shopping()
+todo_list = ToDo()
+current_table = shopping_list
+blocked_list = Blocked()
 
 button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_item')
 rows_count = 2
@@ -45,7 +45,9 @@ async def filter_users(message: types.Message):
 @dp.message_handler(filter_users, commands='start')
 @dp.message_handler(Text(startswith='Выход из'))
 async def start_chat(message: types.Message):
-    """ Запускает бота и основное меню """
+    """
+    Запускает бота и отображает основное меню
+    """
     global current_table
     current_table = None
     await message.answer(f'Всегда готов! \U0001F44D \n')
@@ -56,12 +58,14 @@ async def start_chat(message: types.Message):
 
     await asyncio.sleep(config.timer)
     current_table = None
-    await message.answer(f'Я спать... \U0001F634', reply_markup=markup, disable_notification=True, )
+    await message.answer(f'Я спать... \U0001F634', reply_markup=markup, disable_notification=True)
 
 
-# Выбрать вид списка
 @dp.message_handler(Text(equals=['Покупки', 'Дела']))
 async def select_table(message: types.Message):
+    """
+    Отображает пункты разделов, адаптирует текст кнопки выхода из раздела в соответствии с выбранным разделом
+    """
     global current_table, rows_count
     back_btn_txt = ''
     if message.text == 'Покупки':
@@ -72,7 +76,6 @@ async def select_table(message: types.Message):
         current_table = todo_list
         back_btn_txt = 'Дел'
         rows_count = 1
-
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(KeyboardButton('Внести в список'), KeyboardButton('Показать список'))
     markup.add(KeyboardButton('Показать всё'), KeyboardButton(f'Выход из {back_btn_txt}'))
@@ -81,6 +84,8 @@ async def select_table(message: types.Message):
 
 @dp.message_handler(Text(equals=['Внести в список', 'Показать список', 'Показать всё']))
 async def add_to_list(message: types.Message):
+    current_list = []
+    mark = ''
     if message.text == 'Внести в список':
         current_list = current_table.irrelevant_items
         mark = 'ATL'
@@ -96,7 +101,8 @@ async def add_to_list(message: types.Message):
 # Фоновая обработка добавления записи в список
 @dp.callback_query_handler(Text(startswith='ATL'))
 async def atl(call: types.CallbackQuery):
-    current_table.set_actual(call.data[3:])
+    item = call.data[3:]
+    current_table.set_actual(item)
     await call.answer(f'Нужно:  {call.data[3:]} \U0001F44C')
     not_actual_list = current_table.irrelevant_items
     await request_service(call, not_actual_list, 'ATL')
@@ -105,7 +111,8 @@ async def atl(call: types.CallbackQuery):
 # Фоновая обработка удаления записи из списка
 @dp.callback_query_handler(Text(startswith='GSL'))
 async def gsl(call: types.CallbackQuery):
-    current_table.set_irrelevant(call.data[3:])
+    item = call.data[3:]
+    current_table.set_irrelevant(item)
     await call.answer(f'Уже не нужно:  {call.data[3:]} \U0001F44C', cache_time=1)
     current_list = current_table.actual_items
     await request_service(call, current_list, 'GSL')
@@ -114,9 +121,10 @@ async def gsl(call: types.CallbackQuery):
 # Фоновая обработка удаления записи
 @dp.callback_query_handler(Text(startswith='DIF'))
 async def dif(call: types.CallbackQuery):
-    current_table.delete_item(call.data[3:])
+    item = call.data[3:]
+    current_table.delete_item(item)
     await call.answer(f'Удалено из записей: {call.data[3:]} \U0001F44C', cache_time=2)
-    current_list = current_table.get_all_list()
+    current_list = current_table.all_items
     await request_service(call, current_list, 'DIF')
 
 
@@ -177,28 +185,20 @@ async def add_new(call: types.CallbackQuery):
 
 
 @dp.message_handler(filter_users, commands='blocked')
-async def show_blocked_users(message: types.Message):
-    blocked = blocked_list.get_blocked()
+async def show_blocked(message: types.Message):
     markup = InlineKeyboardMarkup()
     clear_btn = InlineKeyboardMarkup(text='Очистить список', callback_data='clear_blocked')
     markup.add(clear_btn)
-    for item in blocked:
-        msg = f'id:  {item[0]}\n' \
-              f'datetime:  {item[1]}\n' \
-              f'message:  {item[2]}'
-        await message.answer(msg)
-    await message.answer(text='0', reply_markup=markup)
-
-
-@dp.message_handler(filter_users, commands='log')
-async def show_blocked_users(message: types.Message):
-    # await message.answer_document()
-    pass
+    msg = ''
+    for item in blocked_list.blocked:
+        msg += f'id: {item[0]}  datetime: {item[1]}  message: {item[2]}\n'
+    await message.answer(msg, reply_markup=markup)
 
 
 @dp.callback_query_handler(Text(equals='clear_blocked'))
 async def clear_blocked_list(call: types.CallbackQuery):
-    blocked_list.clear_list()
+    blocked_list.clear()
+    await call.answer(f'Список очищен! \U0001F44C', cache_time=2)
     await call.message.delete()
 
 
@@ -213,8 +213,8 @@ async def add_new_item(message: types.Message):
     if txt_size > 128:
         await message.answer(f'Слишком много слов! \n'
                              f'Давай покороче... \U0001F612')
-    elif message.text not in current_table.get_all_list():
-        current_table.add_new(message.text)
+    elif message.text not in current_table.all_items:
+        current_table.add_new_item(message.text)
         msg_txt = f'Добавлено: {message.text} \U0001F44C '
     else:
         msg_txt = f'Не повторяйся! \U0000261D'
@@ -244,4 +244,3 @@ def get_btns(set_type, prefix):
 
 if __name__ == '__main__':
     executor.start_polling(dp)
-    
