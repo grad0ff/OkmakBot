@@ -1,95 +1,121 @@
 import sqlite3
+from sqlite3 import Cursor
+
 import config
 
 from services import Services
 
-connection = sqlite3.connect(config.db_path)
-with connection:
+
+with sqlite3.connect(config.DATABASE) as connection:
     cursor = connection.cursor()
 
 
-class Main:
-    def __init__(self, table_name):
-        self.table_name = table_name
+def db_request(command: str) -> Cursor:
+    cursor.execute(command)
+    connection.commit()
+    # connection.close()
+
+
+class Base:
+    __table = ''
+    __actual_list = []
+    __irrelevant_list = []
+    __all_items = []
+
+    @classmethod
+    def create_table(cls, table_name) -> None:
+        cls.__table = table_name
+        # cls.table_name = table
         # cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (item TEXT, status TEXT)")
-        self._actual_list = self._notactual_list = self._all_items = self.updated_time = None
+        db_request(f'CREATE TABLE IF NOT EXISTS {table_name} (item VARCHAR(32), status VARCHAR(32))')
 
-    def get_all_list(self):
-        all_items = list(
-            map(lambda x: x[0], cursor.execute(f"SELECT item FROM {self.table_name}").fetchall())
+
+    @classmethod
+    @property
+    def all_items(cls) -> list:
+        list_of_all = list(map(lambda x: x[0], db_request(f'SELECT item FROM {cls.__table}').fetchall()))
+        return list_of_all
+
+    @classmethod
+    @property
+    def irrelevant_items(cls) -> list:
+        list_of_irrelevant = list(
+            map(lambda x: x[0], db_request(f'SELECT item FROM {cls.__table} WHERE status = "irrelevant"').fetchall())
         )
-        return all_items
+        return list_of_irrelevant
 
-    def get_notactual_list(self):
-        notactual_list = list(
-            map(lambda x: x[0],
-                cursor.execute(f"SELECT item FROM {self.table_name} WHERE status = 'not_actual'").fetchall())
+    @classmethod
+    @property
+    def actual_items(cls) -> list:
+        list_of_actual = list(
+            map(lambda x: x[0], db_request(f'SELECT item FROM {cls.__table} WHERE status = "actual"').fetchall())
         )
-        return notactual_list
+        return list_of_actual
 
-    def get_actual_list(self):
-        actual_list = list(
-            map(lambda x: x[0],
-                cursor.execute(f"SELECT item FROM {self.table_name} WHERE status = 'actual'").fetchall()))
-        return actual_list
+    @classmethod
+    def set_actual(cls, item):
+        """
+        Меняет состояние сущности из неактуального на актульное
+        """
+        db_request(f'UPDATE {cls.__table} SET status = "actual" WHERE item = "{item}"')
+        cls.set_timestamp()
 
-    # добавить товар в список покупок
-    def add_to_list(self, item):
-        cursor.execute(f"UPDATE {self.table_name} SET status = 'actual' WHERE item = '{item}'")
-        connection.commit()
-        self.set_timestamp()
+    @classmethod
+    def set_irrelevant(cls, item: str) -> None:
+        """
+        Меняет состояние сущности из актуалнього на неактульное
+        """
+        db_request(f'UPDATE {cls.__table} SET status = "irrelevant" WHERE item = "{item}"')
+        cls.set_timestamp()
 
-    # удалить товар из списка покупок
-    def del_from_list(self, item):
-        cursor.execute(f"UPDATE {self.table_name} SET status = 'not_actual' WHERE item = '{item}'")
-        self.set_timestamp()
+    @classmethod
+    def add_new_item(cls, new_item):
+        """
+        Добавляет новую запись в БД и задает его состояние как актуальное
+        """
+        if new_item not in cls.all_items:
+            db_request(f'INSERT INTO {cls.__table} VALUES ("{new_item}", "actual")')
+        cls.set_timestamp()
 
-    # добавить новый товар
-    def add_new_item(self, item):
-        if item not in self.get_all_list():
-            cursor.execute(f"INSERT INTO {self.table_name} VALUES ('{item}', 'actual')")
-        connection.commit()
-        self.set_timestamp()
+    @classmethod
+    def delete_item(cls, item: str) -> None:
+        """
+        Удалаяет товар из БД
+        """
+        db_request(f'DELETE FROM {cls.__table} WHERE item = "{item}"')
 
-    # удалить товар из БД
-    def delete_item(self, item):
-        cursor.execute(f"DELETE FROM {self.table_name} WHERE item = '{item}'")
-        connection.commit()
-
-    def set_timestamp(self):
-        self.updated_time = Services.get_datetime()
-
-
-class ShoppingList(Main):
-    TABLE_NAME = 'product_table'
-
-    def __init__(self):
-        super().__init__(self.TABLE_NAME)
+    @classmethod
+    def set_timestamp(cls):
+        cls.updated_time = Services.get_datetime()
 
 
-class ToDoList(Main):
-    TABLE_NAME = 'todo_table'
+class Shopping(Base):
+    TABLE_NAME = 'product'
 
     def __init__(self):
-        super().__init__(self.TABLE_NAME)
+        super().create_table(self.TABLE_NAME)
 
 
-class BlockedUsers():
+class ToDo(Base):
+    TABLE_NAME = 'todo'
+
     def __init__(self):
-        cursor.execute("CREATE TABLE IF NOT EXISTS blocked_users (userID INTEGER, datetime TEXT, msg_text TEXT)")
+        super().create_table(self.TABLE_NAME)
 
-    @staticmethod
-    def set_blocked_id(user_id, text):
-        cursor.execute(f"INSERT INTO blocked_users VALUES ({user_id}, {Services.get_datetime()}, {repr(text)})")
-        connection.commit()
 
-    @staticmethod
-    def get_blocked():
-        blocked_list = cursor.execute(f"SELECT * FROM blocked_users").fetchall()
-        return blocked_list
-
-    @staticmethod
-    def clear_list():
-        cursor.execute("DELETE FROM blocked_users")
-        connection.commit()
+# class Blocked():
+#     TABLE_NAME = 'blocked'
+#
+#     def __init__(self):
+#         db_request(f'CREATE TABLE IF NOT EXISTS {cls.TABLE_NAME} (user_id INTEGER, datetime TEXT, msg TEXT)')
+#
+#     def add(self, user_id, msg):
+#         db_request(f'INSERT INTO {cls.TABLE_NAME} VALUES ({user_id}, {Services.get_datetime()}, {repr(msg)})')
+#
+#     def get_blocked(self):
+#         blocked = db_request(f'SELECT * FROM {cls.TABLE_NAME}").fetchall()')
+#         return blocked
+#
+#     @staticmethod
+#     def clear_list(self):
+#         db_request(f'DELETE FROM {cls.TABLE_NAME}')
