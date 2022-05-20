@@ -7,7 +7,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import Dispatcher, FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
-    InlineKeyboardMarkup, InlineKeyboardButton
+    InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
 
@@ -31,6 +31,12 @@ button_new = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='new_
 rows_count = 2
 
 
+class Step(StatesGroup):
+    current_list = State()
+    action = State()
+    data = State()
+
+
 async def filter_users(message: types.Message):
     """
     Фильтрует пользователей и возвращает сообщение если пользователь в списке зарегистрированных, иначе вносит в БД в
@@ -43,12 +49,13 @@ async def filter_users(message: types.Message):
         return message
 
 
-@dp.message_handler(filter_users, commands='start')
+@dp.message_handler(filter_users, commands='start', state='*')
 @dp.message_handler(Text(startswith='Выход из'))
-async def start_chat(message: types.Message):
+async def start_chat(message: types.Message, state: FSMContext):
     """
     Запускает бота и отображает основное меню
     """
+
     global current_table
     current_table = None
     await message.answer(f'Всегда готов! \U0001F44D \n')
@@ -56,24 +63,41 @@ async def start_chat(message: types.Message):
     markup.add(KeyboardButton('Покупки'))
     markup.add(KeyboardButton('Дела'))
     await message.answer(f'Выбери нужный раздел \U0001F4C2', reply_markup=markup)
+    await state.finish()
+    await Step.current_list.set()
 
     await asyncio.sleep(config.timer)
     current_table = None
     await message.answer(f'Я спать... \U0001F634', reply_markup=markup, disable_notification=True)
 
 
-@dp.message_handler(Text(equals=['Покупки', 'Дела']))
-async def select_table(message: types.Message):
+@dp.message_handler(commands='cancel', state='*')
+async def cancel(message: types.Message, state: FSMContext):
+    """
+    Завершает чат и сбрасывает машину состояний
+    """
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    await state.finish()
+    await message.answer("Чат завершен", reply_markup=ReplyKeyboardRemove())
+
+
+@dp.message_handler(lambda message: message.text in ['Покупки', 'Дела'], state=Step.current_list)
+async def select_table(message: types.Message, state: FSMContext):
     """
     Отображает пункты разделов, адаптирует текст кнопки выхода из раздела в соответствии с выбранным разделом
     """
     global current_table, rows_count
+    msg = message.text
+    await state.update_data(current_table=msg)
+
     back_btn_txt = ''
-    if message.text == 'Покупки':
+    if msg == 'Покупки':
         current_table = shopping_list
         back_btn_txt = 'Покупок'
         rows_count = 2
-    elif message.text == 'Дела':
+    elif msg == 'Дела':
         current_table = task_list
         back_btn_txt = 'Дел'
         rows_count = 1
