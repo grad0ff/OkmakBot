@@ -4,14 +4,15 @@ import sys
 
 from aiogram import Bot, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import Dispatcher
+from aiogram.dispatcher import Dispatcher, FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
 
 import config
-from db_manage import Shopping, ToDo, Blocked
+from db_manage import Shopping, Task, Blocked
 
 logging.basicConfig(filename=config.LOG_FILE, filemode='w')
 
@@ -22,7 +23,7 @@ dp = Dispatcher(bot, storage=storage)
 users = list(config.users.values())
 
 shopping_list = Shopping()
-todo_list = ToDo()
+task_list = Task()
 current_table = shopping_list
 blocked_list = Blocked()
 
@@ -73,7 +74,7 @@ async def select_table(message: types.Message):
         back_btn_txt = 'Покупок'
         rows_count = 2
     elif message.text == 'Дела':
-        current_table = todo_list
+        current_table = task_list
         back_btn_txt = 'Дел'
         rows_count = 1
     markup = ReplyKeyboardMarkup(resize_keyboard=True)

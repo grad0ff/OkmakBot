@@ -12,7 +12,11 @@ with sqlite3.connect(config.DATABASE) as connection:
     cursor = connection.cursor()
 
 
-class Base:
+class BaseList:
+    """
+    Базовый клас для списков, нпр списка покупок или списка дел, определяемых как дочерние классы
+    Base class for lists, s.a. shopping lists or task lists defined as subclusses
+    """
     __actual_list = []
     __irrelevant_list = []
     __all_items = []
@@ -79,14 +83,14 @@ class Base:
         self.updated_time = Services.get_datetime()
 
 
-class Shopping(Base):
+class Shopping(BaseList):
     __table_name = 'product'
 
     def __init__(self):
         super().__init__(self.__table_name)
 
 
-class ToDo(Base):
+class Task(BaseList):
     __table_name = 'todo'
 
     def __init__(self):
