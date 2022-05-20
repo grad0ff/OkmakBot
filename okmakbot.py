@@ -32,9 +32,11 @@ rows_count = 2
 
 
 class Step(StatesGroup):
-    current_list = State()
-    action = State()
-    data = State()
+    wait_current_list = State()
+    wait_action = State()
+    wait_add_to_list = State()
+    wait_del_from_list = State()
+    wait_del_from_db = State()
 
 
 async def filter_users(message: types.Message):
@@ -55,16 +57,15 @@ async def start_chat(message: types.Message, state: FSMContext):
     """
     Запускает бота и отображает основное меню
     """
-
     global current_table
+    await state.finish()
     current_table = None
     await message.answer(f'Всегда готов! \U0001F44D \n')
     markup = ReplyKeyboardMarkup(resize_keyboard=True, input_field_placeholder='Сначала выбери раздел!')
     markup.add(KeyboardButton('Покупки'))
     markup.add(KeyboardButton('Дела'))
     await message.answer(f'Выбери нужный раздел \U0001F4C2', reply_markup=markup)
-    await state.finish()
-    await Step.current_list.set()
+    await Step.wait_current_list.set()
 
     await asyncio.sleep(config.timer)
     current_table = None
@@ -83,14 +84,14 @@ async def cancel(message: types.Message, state: FSMContext):
     await message.answer("Чат завершен", reply_markup=ReplyKeyboardRemove())
 
 
-@dp.message_handler(lambda message: message.text in ['Покупки', 'Дела'], state=Step.current_list)
-async def select_table(message: types.Message, state: FSMContext):
+@dp.message_handler(Text(equals=['Покупки', 'Дела']), state=Step.wait_current_list)
+async def selected_list(message: types.Message, state: FSMContext):
     """
     Отображает пункты разделов, адаптирует текст кнопки выхода из раздела в соответствии с выбранным разделом
     """
     global current_table, rows_count
     msg = message.text
-    await state.update_data(current_table=msg)
+    await state.update_data(current_list=msg)
 
     back_btn_txt = ''
     if msg == 'Покупки':
@@ -105,26 +106,33 @@ async def select_table(message: types.Message, state: FSMContext):
     markup.add(KeyboardButton('Внести в список'), KeyboardButton('Показать список'))
     markup.add(KeyboardButton('Показать всё'), KeyboardButton(f'Выход из {back_btn_txt}'))
     await message.answer('Выбери действие \U000027A1', reply_markup=markup)
+    await Step.wait_action.set()
 
 
-@dp.message_handler(Text(equals=['Внести в список', 'Показать список', 'Показать всё']))
-async def add_to_list(message: types.Message):
+@dp.message_handler(Text(equals=['Внести в список', 'Показать список', 'Показать всё']), state=Step.wait_action)
+async def selected_action(message: types.Message, state: FSMContext):
+    """
+    Отображает перечень действий, доступных для текущего списка
+
+    """
+    await state.update_data(action=message.text)
     current_list = []
     mark = ''
-    if message.text == 'Внести в список':
+    msg = message.text
+    if msg == 'Внести в список':
         current_list = current_table.irrelevant_items
         mark = 'ATL'
-    elif message.text == 'Показать список':
+    elif msg == 'Показать список':
         current_list = current_table.actual_items
         mark = 'GSL'
-    elif message.text == 'Показать всё':
+    elif msg == 'Показать всё':
         current_list = current_table.all_items
         mark = 'DIF'
     await request_service(message, current_list, mark)
 
 
 # Фоновая обработка добавления записи в список
-@dp.callback_query_handler(Text(startswith='ATL'))
+@dp.callback_query_handler(Text(startswith='ATL'), state=Step.wait_add_to_list)
 async def atl(call: types.CallbackQuery):
     item = call.data[3:]
     current_table.set_actual(item)
@@ -134,7 +142,7 @@ async def atl(call: types.CallbackQuery):
 
 
 # Фоновая обработка удаления записи из списка
-@dp.callback_query_handler(Text(startswith='GSL'))
+@dp.callback_query_handler(Text(startswith='GSL'), state=Step.wait_del_from_list)
 async def gsl(call: types.CallbackQuery):
     item = call.data[3:]
     current_table.set_irrelevant(item)
@@ -144,7 +152,7 @@ async def gsl(call: types.CallbackQuery):
 
 
 # Фоновая обработка удаления записи
-@dp.callback_query_handler(Text(startswith='DIF'))
+@dp.callback_query_handler(Text(startswith='DIF'), state=Step.wait_del_from_db)
 async def dif(call: types.CallbackQuery):
     item = call.data[3:]
     current_table.delete_item(item)
