@@ -17,19 +17,21 @@ class BaseList:
     Базовый клас для списков, нпр списка покупок или списка дел, определяемых как дочерние классы
     Base class for lists, s.a. shopping lists or task lists defined as subclusses
     """
-    __actual_list = []
-    __irrelevant_list = []
-    __all_items = []
-    updated_time = ''
+    __actual_list = list()
+    __irrelevant_list = list()
+    __all_items = list()
+    updated_time = str()
 
     def __init__(self, table_name: str) -> None:
         self.__table = table_name
         cursor.execute(f'CREATE TABLE IF NOT EXISTS {self.__table} (item VARCHAR(32), status VARCHAR(32))')
 
     @property
-    def all_items(self) -> list:
-        list_of_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table}').fetchall()))
-        return list_of_all
+    def actual_items(self) -> list:
+        list_of_actual = list(
+            map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table} WHERE status = "actual"').fetchall())
+        )
+        return list_of_actual
 
     @property
     def irrelevant_items(self) -> list:
@@ -40,25 +42,15 @@ class BaseList:
         return list_of_irrelevant
 
     @property
-    def actual_items(self) -> list:
-        list_of_actual = list(
-            map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table} WHERE status = "actual"').fetchall())
-        )
-        return list_of_actual
+    def all_items(self) -> list:
+        list_of_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table}').fetchall()))
+        return list_of_all
 
-    def set_actual(self, item: str) -> None:
+    def change_status(self, item: str, status: str) -> None:
         """
-        Меняет состояние сущности из неактуального на актульное
+        Меняет состояние сущности из неактуального на актульное и наоборот
         """
-        cursor.execute(f'UPDATE {self.__table} SET status = "actual" WHERE item = "{item}"')
-        self.set_timestamp()
-        connection.commit()
-
-    def set_irrelevant(self, item: str) -> None:
-        """
-        Меняет состояние сущности из актуалнього на неактульное
-        """
-        cursor.execute(f'UPDATE {self.__table} SET status = "irrelevant" WHERE item = "{item}"')
+        cursor.execute(f'UPDATE {self.__table} SET status = "{status}" WHERE item = "{item}"')
         self.set_timestamp()
         connection.commit()
 
@@ -73,7 +65,7 @@ class BaseList:
 
     def delete_item(self, item: str) -> None:
         """
-        Удалаяет товар из БД
+        Удаляет товар из БД
         """
         cursor.execute(f'DELETE FROM {self.__table} WHERE item = "{item}"')
         connection.commit()
