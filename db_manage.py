@@ -12,7 +12,11 @@ with sqlite3.connect(config.DATABASE) as connection:
     cursor = connection.cursor()
 
 
-class BaseList:
+class TableNameError(Exception):
+    pass
+
+
+class Table:
     """
     Базовый клас для списков, нпр списка покупок или списка дел, определяемых как дочерние классы
     Base class for lists, s.a. shopping lists or task lists defined as subclusses
@@ -23,13 +27,24 @@ class BaseList:
     updated_time = str()
 
     def __init__(self, table_name: str) -> None:
-        self.__table = table_name
-        cursor.execute(f'CREATE TABLE IF NOT EXISTS {self.__table} (item VARCHAR(32), status VARCHAR(32))')
+        if isinstance(table_name, str):
+            self.__table_name = table_name
+            cursor.execute(
+                f'CREATE TABLE IF NOT EXISTS {self.__table_name} (item VARCHAR(32), status VARCHAR(32), '
+                f'priority VARCHAR(16))'
+            )
+        else:
+            raise TableNameError
+
+    @property
+    def table_name(self):
+        return self.__table_name
 
     @property
     def actual_items(self) -> list:
         list_of_actual = list(
-            map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table} WHERE status = "actual"').fetchall())
+            map(lambda x: x[0],
+                cursor.execute(f'SELECT item FROM {self.__table_name} WHERE status = "actual"').fetchall())
         )
         return list_of_actual
 
@@ -37,20 +52,20 @@ class BaseList:
     def irrelevant_items(self) -> list:
         list_of_irrelevant = list(
             map(lambda x: x[0],
-                cursor.execute(f'SELECT item FROM {self.__table} WHERE status = "irrelevant"').fetchall())
+                cursor.execute(f'SELECT item FROM {self.__table_name} WHERE status = "irrelevant"').fetchall())
         )
         return list_of_irrelevant
 
     @property
     def all_items(self) -> list:
-        list_of_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table}').fetchall()))
+        list_of_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table_name}').fetchall()))
         return list_of_all
 
     def change_status(self, item: str, status: str) -> None:
         """
         Меняет состояние сущности из неактуального на актульное и наоборот
         """
-        cursor.execute(f'UPDATE {self.__table} SET status = "{status}" WHERE item = "{item}"')
+        cursor.execute(f'UPDATE {self.__table_name} SET status = "{status}" WHERE item = "{item}"')
         self.set_timestamp()
         connection.commit()
 
@@ -59,7 +74,7 @@ class BaseList:
         Добавляет новую запись в БД и задает его состояние как актуальное
         """
         if new_item not in self.all_items:
-            cursor.execute(f'INSERT INTO {self.__table} VALUES ("{new_item}", "actual")')
+            cursor.execute(f'INSERT INTO {self.__table_name} VALUES ("{new_item}", "actual")')
         self.set_timestamp()
         connection.commit()
 
@@ -67,26 +82,12 @@ class BaseList:
         """
         Удаляет товар из БД
         """
-        cursor.execute(f'DELETE FROM {self.__table} WHERE item = "{item}"')
+        cursor.execute(f'DELETE FROM {self.__table_name} WHERE item = "{item}"')
         connection.commit()
 
     @classmethod
     def set_timestamp(self) -> None:
         self.updated_time = Services.get_datetime()
-
-
-class Shopping(BaseList):
-    __table_name = 'product'
-
-    def __init__(self):
-        super().__init__(self.__table_name)
-
-
-class Task(BaseList):
-    __table_name = 'todo'
-
-    def __init__(self):
-        super().__init__(self.__table_name)
 
 
 class Blocked():
