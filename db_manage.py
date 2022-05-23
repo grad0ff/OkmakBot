@@ -1,8 +1,6 @@
 import sqlite3
-from sqlite3 import Cursor
 
 import config
-
 from services import Services
 
 # with sqlite3.connect(config.DATABASE) as connection:
@@ -16,15 +14,49 @@ class TableNameError(Exception):
     pass
 
 
+class Item:
+    ACTUAL = 'actual'
+    IRRELEVANT = 'irrelevant'
+    PRIORITY_1 = '\U00002780'
+    PRIORITY_2 = '\U00002781'
+    __items = list()
+
+    def __init__(self, name):
+        self.__name = name
+        self.__status = self.ACTUAL
+        self.__priority = self.PRIORITY_1
+        self.__class__.__items.append(self)
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, new_status):
+        self.__status = new_status
+
+    @property
+    def priority(self):
+        return self.__priority
+
+    @priority.setter
+    def priority(self, new_priority):
+        self.__priority = new_priority
+
+
 class Table:
     """
     Базовый клас для списков, нпр списка покупок или списка дел, определяемых как дочерние классы
     Base class for lists, s.a. shopping lists or task lists defined as subclusses
     """
-    __actual_list = list()
-    __irrelevant_list = list()
-    __all_items = list()
-    updated_time = str()
+    __list_of_actual = list()
+    __list_of_irrelevant = list()
+    __list_of_all = list()
+    __updated_time = str()
 
     def __init__(self, table_name: str) -> None:
         if isinstance(table_name, str):
@@ -40,41 +72,32 @@ class Table:
     def table_name(self):
         return self.__table_name
 
-    @property
-    def actual_items(self) -> list:
-        list_of_actual = list(
+    def get_items(self, status: str) -> list:
+        __list_of_items = list(
             map(lambda x: x[0],
-                cursor.execute(f'SELECT item FROM {self.__table_name} WHERE status = "actual"').fetchall())
+                cursor.execute(f'SELECT item FROM {self.__table_name} WHERE status = {status}').fetchall())
         )
-        return list_of_actual
+        return __list_of_items
 
-    @property
-    def irrelevant_items(self) -> list:
-        list_of_irrelevant = list(
-            map(lambda x: x[0],
-                cursor.execute(f'SELECT item FROM {self.__table_name} WHERE status = "irrelevant"').fetchall())
+    def get_all_items(self) -> list:
+        __list_of_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table_name}').fetchall()))
+        return __list_of_all
+
+    def change_status(self, item: Item) -> None:
+        """
+        Меняет актуальность и приоритет записи
+        """
+        cursor.execute(
+            f'UPDATE {self.table_name} SET status = "{item.status}", priority = "{item.priority}" WHERE item = "{item}"'
         )
-        return list_of_irrelevant
-
-    @property
-    def all_items(self) -> list:
-        list_of_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.__table_name}').fetchall()))
-        return list_of_all
-
-    def change_status(self, item: str, status: str) -> None:
-        """
-        Меняет состояние сущности из неактуального на актульное и наоборот
-        """
-        cursor.execute(f'UPDATE {self.__table_name} SET status = "{status}" WHERE item = "{item}"')
         self.set_timestamp()
         connection.commit()
 
-    def add_new_item(self, new_item: str) -> None:
+    def add_new_item(self, item: Item) -> None:
         """
         Добавляет новую запись в БД и задает его состояние как актуальное
         """
-        if new_item not in self.all_items:
-            cursor.execute(f'INSERT INTO {self.__table_name} VALUES ("{new_item}", "actual")')
+        cursor.execute(f'INSERT INTO {self.table_name} VALUES ("{item.name}", "{item.status}", "{item.priority}")')
         self.set_timestamp()
         connection.commit()
 
@@ -85,9 +108,12 @@ class Table:
         cursor.execute(f'DELETE FROM {self.__table_name} WHERE item = "{item}"')
         connection.commit()
 
-    @classmethod
     def set_timestamp(self) -> None:
-        self.updated_time = Services.get_datetime()
+        self.__updated_time = Services.get_datetime()
+
+    @property
+    def updated_time(self):
+        return self.__updated_time
 
 
 class Blocked():
