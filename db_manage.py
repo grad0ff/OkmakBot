@@ -1,14 +1,11 @@
 import sqlite3
 
 import config
+from app_exceptions import TableNameError
 from services import Services
 
 with sqlite3.connect(config.DATABASE) as connection:
     cursor = connection.cursor()
-
-
-class TableNameError(Exception):
-    pass
 
 
 class TableManager:

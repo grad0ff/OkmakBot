@@ -1,0 +1,2 @@
+class TableNameError(Exception):
+    pass
