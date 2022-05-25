@@ -13,9 +13,6 @@ from aiogram.utils import executor
 import config
 from db_manage import TableManager, Blocked
 
-ACTUAL = 'actual'
-IRRELEVANT = 'irrelevant'
-
 if sys.platform != 'win32':
     logging.basicConfig(filename=config.LOG_FILE, filemode='w')
 
@@ -42,8 +39,9 @@ btn_new_record = InlineKeyboardButton('НОВАЯ ЗАПИСЬ', callback_data='
 btn_yes = InlineKeyboardButton('Да', callback_data='YES')
 btn_no = InlineKeyboardButton('Нет', callback_data='NO')
 
-menu_btns_txts = [btn_shopping.text, btn_tasks.text]
-submenu_btns_txts = [btn_add.text, btn_show.text, btn_all.text, btn_back.text]
+yn_btns_txt = [btn_yes.text, btn_no.text]
+menu_btns_txt = [btn_shopping.text, btn_tasks.text]
+submenu_btn_txt = [btn_add.text, btn_show.text, btn_all.text, btn_back.text]
 
 
 # priority_btns_txts = [btn_priority_1.text, btn_priority_2.text]
@@ -52,13 +50,14 @@ submenu_btns_txts = [btn_add.text, btn_show.text, btn_all.text, btn_back.text]
 class Step(StatesGroup):
     wait_current_list = State()
     wait_action = State()
-    wait_priotity = State()
     wait_add_to_list = State()
+    wait_priotity = State()
     wait_del_from_list = State()
     wait_del_forever = State()
     wait_new_item = State()
 
-    SUBMENU_STATES = [wait_add_to_list, wait_priotity, wait_del_from_list, wait_del_forever]
+    submenu_states = [wait_add_to_list, wait_priotity, wait_del_from_list, wait_del_forever]
+
 
 
 async def filter_users(message: types.Message):
@@ -102,7 +101,7 @@ async def cancel(message: types.Message, state: FSMContext):
     await message.answer("Чат завершен!  \U000026D4", reply_markup=ReplyKeyboardRemove())
 
 
-@dp.message_handler(Text(equals=[btn_shopping.text, btn_tasks.text]), state=[Step.wait_current_list])
+@dp.message_handler(Text(equals=menu_btns_txt), state=[Step.wait_current_list])
 async def selected_current_list(message: types.Message, state: FSMContext):
     """
     Отображает пункты разделов, адаптирует текст кнопки выхода из раздела в соответствии с выбранным разделом
@@ -125,27 +124,66 @@ async def selected_current_list(message: types.Message, state: FSMContext):
     await Step.wait_action.set()
 
 
-@dp.message_handler(Text(equals=submenu_btns_txts), state=[Step.wait_action, *Step.SUBMENU_STATES])
+@dp.message_handler(Text(equals=submenu_btn_txt), state=[Step.wait_action, *Step.submenu_states])
 async def selected_action(message: types.Message, state: FSMContext):
     """
     Отображает перечень действий, доступных для текущего списка
     """
     await state.update_data(action=message.text)
-    items_list = list()
+    items_list = []
     msg_txt = message.text
-    if msg_txt == btn_add.text:
-        items_list = current_table.get_items(IRRELEVANT)
-        await Step.wait_add_to_list.set()
+    msg = ''
+
+    def get_mrkp(items_list):
+        markup = types.InlineKeyboardMarkup()
+        for item in sorted(items_list):
+            btn_item = InlineKeyboardButton(text=item, callback_data=item)
+            markup.add(btn_item)
+        return markup
+
     if msg_txt == btn_show.text:
-        items_list = current_table.get_items(ACTUAL)
-        await Step.wait_del_from_list.set()
+        priority_1_items, priority_2_items = current_table.actual_items
+        if priority_1_items:
+            msg = f'Это нужно в первую очередь! \U0001F609 \n'
+            markup = get_mrkp(priority_1_items)
+            await message.answer(msg, reply_markup=markup)
+        # else:
+        #     msg = f'Ничего такого срочного! \U0001F609 \n'
+        #     await message.answer(msg)
+        if priority_2_items:
+            msg = f'Это уже по возможности... \U0001F609 \n'
+            markup = get_mrkp(priority_2_items)
+            await message.answer(msg, reply_markup=markup)
+        # else:
+        #     msg = f'Ничего такого срочного! \U0001F609 \n'
+        if priority_1_items or priority_2_items:
+            await message.answer(f'Ред. в {current_table.updated_time}')
+        else:
+            await message.answer('Да вроде бы всё есть! \U0001F389 ')
+            return await Step.wait_del_from_list.set()
+
+    if msg_txt == btn_add.text:
+        items_lists = current_table.irrelevant_items
+        if items_lists:
+            msg = 'Что нужно добавить? \U0001F914 '
+            await message.answer(msg, reply_markup=get_mrkp(items_lists))
+        else:
+            await message.answer('Выбирать не из чего... \U00002639')
+            return await Step.wait_add_to_list.set()
+
     if msg_txt == btn_all.text:
-        items_list = current_table.get_all_items()
-        await Step.wait_del_forever.set()
-    await answer_manager(message, items_list, state)
+        items_list = current_table.all_items
+        if items_list:
+            msg = 'Что нужно удалить? \U0001F914 '
+            await message.answer(msg, reply_markup=get_mrkp(items_list))
+        else:
+            await message.answer('Удалять нечего! \U0001F923')
+            return await Step.wait_del_forever.set()
+    # markup = get_mrkp(items_list)
+    # await message.answer(msg, reply_markup=markup)
 
 
-@dp.callback_query_handler(Text(equals=btn_yes.callback_data), state=Step.wait_new_item)
+# @dp.callback_query_handler(Text(equals=btn_yes.callback_data), state=Step.wait_new_item)
 @dp.callback_query_handler(lambda call: call.data != btn_new_record.callback_data, state=Step.wait_add_to_list)
 async def add_to_list(call: types.CallbackQuery, state: FSMContext):
     """
@@ -160,7 +198,7 @@ async def add_to_list(call: types.CallbackQuery, state: FSMContext):
     await state.update_data(item=item)
     markup = InlineKeyboardMarkup()
     markup.add(btn_yes, btn_no)
-    await call.message.edit_text('Это вот сейчас нужно, да? \U000027A1', reply_markup=markup)
+    await call.message.edit_text('Это вот сейчас нужно, да? \U0001F914', reply_markup=markup)
     await Step.wait_priotity.set()
 
 
@@ -173,9 +211,9 @@ async def add_new_record(call: types.CallbackQuery):
     await call.answer()
 
 
-@dp.callback_query_handler(state=Step.wait_priotity)
+@dp.callback_query_handler(Text(equals=yn_btns_txt), state=Step.wait_priotity)
 async def get_priority(call: types.CallbackQuery, state: FSMContext):
-    priority = 1 if call.data == 'YES' else 2
+    priority = 1 if call.data == btn_yes.text else 2
     item = (await state.get_data()).get('item')
     await call.answer(f'Нужно:  {item} \U0001F44C')
     current_table.change_status(item=item, status=ACTUAL, priority=priority)
@@ -238,11 +276,9 @@ async def get_answer_txt(item_lists, current_state: str) -> str:
     """
 
     current_list = list().append(lst for lst in item_lists)
-    if current_state == Step.wait_add_to_list.state:
-        # сообщения для списка неактуальных записей
-        if current_list:
-            return 'Что нужно добавить? \U0001F914 '
-        return 'Выбирать не из чего... \U00002639'
+    # if current_state == Step.wait_add_to_list.state:
+    # # сообщения для списка неактуальных записей
+
     if current_state == Step.wait_del_from_list.state:
         # сообщения для списка актуальных записей
         if current_list:
@@ -261,23 +297,29 @@ async def get_markup(lists: list, current_state: str):
     """
     global rows_count
     markup = InlineKeyboardMarkup(row_width=rows_count)
+    mark = True
     for lst in lists:
-        btn_list = list()
         if lst:
+            btn_list = []
             long_txt_flag = False
             for item in sorted(lst):
                 txt_size = sys.getsizeof(item)
                 if txt_size > 100:
                     long_txt_flag = True
                 button_item = InlineKeyboardButton(item, callback_data=item)
-                if current_state == Step.wait_del_forever.state:
+                if current_state == Step.wait_add_to_list.state:
+                    if mark:
+                        button_item.text = '\U00002757' + button_item.text
+                    mark = False
+                elif current_state == Step.wait_del_forever.state:
                     button_item.text = '\U0000274C  ' + button_item.text
                 btn_list.append(button_item)
             if long_txt_flag:
                 rows_count = 1
             else:
                 rows_count = 2
-        markup.add(*btn_list)
+            markup.row_width = rows_count
+            markup.add(*btn_list)
     if current_state == Step.wait_add_to_list.state:
         markup.add(btn_new_record)
 
@@ -312,14 +354,18 @@ async def adding_new_item(message: types.Message, state: FSMContext):
     if sys.getsizeof(msg_txt) > 128:
         return await message.answer('Слишком много слов! \n'
                                     'Давай покороче... \U0001F612')
-    if msg_txt in current_table.get_all_items():
+    if msg_txt in current_table.all_items:
         return await message.answer('Не повторяйся! \U0000261D')
     else:
         await state.update_data(new_item=msg_txt)
+        current_table.insert_new_item(msg_txt)
         markup = InlineKeyboardMarkup()
         markup.add(btn_yes, btn_no)
-        await message.answer(f'Добавить \" {msg_txt} \" в список?', reply_markup=markup)
-        await Step.wait_new_item.set()
+        await message.answer('Это вот сейчас нужно, да? \U0001F914', reply_markup=markup)
+
+        await Step.wait_priotity.set()
+        # await message.answer(f'Добавить \" {msg_txt} \" в список?', reply_markup=markup)
+        # await Step.wait_new_item.set()
 
 
 @dp.callback_query_handler(Text(equals=btn_no.callback_data), state=Step.wait_new_item)

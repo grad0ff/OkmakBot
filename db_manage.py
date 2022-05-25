@@ -14,18 +14,22 @@ class TableManager:
     Base class for lists, s.a. shopping lists or task lists defined as subclusses
     """
 
-    def __init__(self, table_name: str) -> None:
+    def __init__(self, table_name: str):
         self.__list_actual = list()
         self.__list_irrelevant = list()
         self.__list_all = list()
         self.__updated_time = str()
-        self.__item = 'item'
-        self.__status = 'status'
-        self.__priority = 'priority'
+        self.__ITEM = 'item'
+        self.__STATUS = 'status'
+        self.__PRIORITY = 'priority'
+        self.__ACTUAL = 'actual'
+        self.__IRRELEVANT = 'irrelevant'
         if isinstance(table_name, str):
             self.__table_name = table_name
-            cursor.execute(f"CREATE TABLE IF NOT EXISTS {self.__table_name} (item VARCHAR(32), "
-                           f"status VARCHAR(16), priority INTEGER)"
+            cursor.execute(f"CREATE TABLE IF NOT EXISTS {self.table_name} "
+                           f"({self.__ITEM} VARCHAR(32), "
+                           f"{self.__STATUS} VARCHAR(16), "
+                           f"{self.__PRIORITY} INTEGER)"
                            )
         else:
             raise TableNameError
@@ -34,22 +38,42 @@ class TableManager:
     def table_name(self):
         return self.__table_name
 
-    def get_items(self, status: str) -> list:
-        __list_priority_1 = list(
-            map(lambda x: x[0], cursor.execute(
-                f"SELECT item FROM {self.table_name} WHERE status = '{status}' AND priority = 1").fetchall()
-                )
-        )
-        __list_priority_2 = list(
-            map(lambda x: x[0], cursor.execute(
-                f"SELECT item FROM {self.table_name} WHERE status = '{status}' AND priority = 2").fetchall()
-                )
-        )
+    @staticmethod
+    def list_converter(iterable):
+        return list(map(lambda x: x[0], iterable))
 
-        return [__list_priority_1, __list_priority_2]
+    @property
+    def actual_items(self) -> tuple:
 
-    def get_all_items(self) -> list:
-        __list_all = list(map(lambda x: x[0], cursor.execute(f'SELECT item FROM {self.table_name}').fetchall()))
+        __list_priority_1 = self.list_converter(cursor.execute(
+            f"SELECT {self.__ITEM} FROM {self.table_name} "
+            f"WHERE {self.__STATUS} = '{self.__ACTUAL}' AND {self.__PRIORITY} = 1 "
+            f"ORDER BY {self.__ITEM}"
+        ).fetchall())
+
+        __list_priority_2 = self.list_converter(cursor.execute(
+            f"SELECT {self.__ITEM} FROM {self.table_name} "
+            f"WHERE {self.__STATUS} = '{self.__ACTUAL}' AND {self.__PRIORITY} = 2 "
+            f"ORDER BY {self.__ITEM}"
+        ).fetchall())
+
+
+        return __list_priority_1, __list_priority_2
+
+    @property
+    def irrelevant_items(self) -> list:
+        __list_irrelevant = self.list_converter(cursor.execute(
+            f"SELECT {self.__ITEM} FROM {self.table_name} "
+            f"WHERE {self.__STATUS} = '{self.__IRRELEVANT}'"
+            f"ORDER BY {self.__ITEM}"
+        ).fetchall())
+        return __list_irrelevant
+
+    @property
+    def all_items(self) -> list:
+        __list_all = self.list_converter(cursor.execute(
+            f'SELECT {self.__ITEM} FROM {self.table_name}'
+        ).fetchall())
         return __list_all
 
     def change_status(self, item: str, status: str, priority: int = 2) -> None:
@@ -57,7 +81,10 @@ class TableManager:
         Меняет актуальность записи
         """
         cursor.execute(
-            f"UPDATE {self.table_name} SET status = '{status}', priority = {priority} WHERE item = '{item}'"
+            f"UPDATE {self.table_name} SET "
+            f"{self.__STATUS} = '{status}', "
+            f"{self.__PRIORITY} = {priority} "
+            f"WHERE {self.__ITEM} = '{item}'"
         )
         self.set_timestamp()
         connection.commit()
@@ -66,14 +93,20 @@ class TableManager:
         """
         Добавляет новую запись в БД и задает его состояние как актуальное
         """
-        cursor.execute(f"INSERT INTO {self.table_name} VALUES ('{item}', '', 1)")
+        cursor.execute(
+            f"INSERT INTO {self.table_name} "
+            f"VALUES ('{item}', '', 1)"
+        )
         connection.commit()
 
     def delete_item(self, item: str) -> None:
         """
         Удаляет товар из БД
         """
-        cursor.execute(f"DELETE FROM {self.__table_name} WHERE item = '{item}'")
+        cursor.execute(
+            f"DELETE FROM {self.__table_name} "
+            f"WHERE {self.__ITEM} = '{item}'"
+        )
         connection.commit()
 
     def set_timestamp(self) -> None:
