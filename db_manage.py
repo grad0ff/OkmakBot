@@ -57,7 +57,6 @@ class TableManager:
             f"ORDER BY {self.__ITEM}"
         ).fetchall())
 
-
         return __list_priority_1, __list_priority_2
 
     @property
@@ -76,14 +75,26 @@ class TableManager:
         ).fetchall())
         return __list_all
 
-    def change_status(self, item: str, status: str, priority: int = 2) -> None:
+    def set_actual(self, item: str, priority: int = 2) -> None:
         """
-        Меняет актуальность записи
+        Меняет актуальность записи на актуальный
         """
         cursor.execute(
             f"UPDATE {self.table_name} SET "
-            f"{self.__STATUS} = '{status}', "
+            f"{self.__STATUS} = '{self.__ACTUAL}' "
             f"{self.__PRIORITY} = {priority} "
+            f"WHERE {self.__ITEM} = '{item}'"
+        )
+        self.set_timestamp()
+        connection.commit()
+
+    def set_irrelevant(self, item: str) -> None:
+        """
+        Меняет актуальность записи на неактуальный
+        """
+        cursor.execute(
+            f"UPDATE {self.table_name} SET "
+            f"{self.__STATUS} = '{self.__IRRELEVANT}' "
             f"WHERE {self.__ITEM} = '{item}'"
         )
         self.set_timestamp()
