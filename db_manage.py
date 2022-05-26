@@ -8,7 +8,7 @@ with sqlite3.connect(config.DATABASE) as connection:
     cursor = connection.cursor()
 
 
-class TableManager:
+class BaseList:
     """
     Базовый клас для списков, нпр списка покупок или списка дел, определяемых как дочерние классы
     Base class for lists, s.a. shopping lists or task lists defined as subclusses
