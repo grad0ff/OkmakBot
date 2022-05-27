@@ -43,7 +43,7 @@ class BaseList:
         return list(map(lambda x: x[0], iterable))
 
     @property
-    def actual_items(self) -> tuple:
+    def actual_items(self) -> list:
 
         __list_priority_1 = self.list_converter(cursor.execute(
             f"SELECT {self.__ITEM} FROM {self.table_name} "
@@ -57,7 +57,7 @@ class BaseList:
             f"ORDER BY {self.__ITEM}"
         ).fetchall())
 
-        return __list_priority_1, __list_priority_2
+        return [__list_priority_1, __list_priority_2]
 
     @property
     def irrelevant_items(self) -> list:
@@ -81,7 +81,7 @@ class BaseList:
         """
         cursor.execute(
             f"UPDATE {self.table_name} SET "
-            f"{self.__STATUS} = '{self.__ACTUAL}' "
+            f"{self.__STATUS} = '{self.__ACTUAL}', "
             f"{self.__PRIORITY} = {priority} "
             f"WHERE {self.__ITEM} = '{item}'"
         )
@@ -121,7 +121,7 @@ class BaseList:
         connection.commit()
 
     def set_timestamp(self) -> None:
-        self.__updated_time = Services.get_datetime()
+        self.__class__.__updated_time = Services.get_datetime()
 
     @property
     def updated_time(self):

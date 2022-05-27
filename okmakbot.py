@@ -1,6 +1,7 @@
 import logging
 import sys
 from typing import Union
+
 from aiogram import Bot
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import Dispatcher, FSMContext
@@ -11,6 +12,7 @@ from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, ReplyKeyboa
 from aiogram.utils import executor
 
 import config
+from answer import Answer
 from db_manage import BaseList, Blocked
 
 if sys.platform != 'win32':
@@ -123,65 +125,51 @@ async def selected_current_list(message: Message, state: FSMContext):
     await Step.wait_action.set()
 
 
-@dp.callback_query_handler(state=[*Step.submenu_states])
+# @dp.callback_query_handler(state=[*Step.submenu_states])
 @dp.message_handler(Text(equals=submenu_btn_txt), state=[Step.wait_action, *Step.submenu_states])
-async def selected_action(message: Union[Message, CallbackQuery], state: FSMContext):
+async def selected_action(request: Union[Message, CallbackQuery], state: FSMContext):
     """
     Отображает перечень действий, доступных для текущего списка
     """
-    msg_txt = str()
-    send_answer = None
-    if isinstance(message, CallbackQuery):
-        send_answer = message.message.edit_text
-    elif isinstance(message, Message):
-        send_answer = message.answer
-        msg_txt = message.text
-        await state.update_data(action=msg_txt)
-    # items_list = []
-    # msg = ''
+    msg_txt = request.text
+    await state.update_data(action=msg_txt)
 
-    if msg_txt == btn_show.text:
-        priority_1_items, priority_2_items = db_table.actual_items
-        if priority_1_items:
-            msg = f'Это нужно в первую очередь! \U0001F609 \n'
-            markup = await get_mrkp(priority_1_items)
-            await send_answer(msg, reply_markup=markup)
-        # else:
-        #     msg = f'Ничего такого срочного! \U0001F609 \n'
-        #     await message.answer(msg)
-        if priority_2_items:
-            msg = f'Это уже по возможности... \U0001F609 \n'
-            markup = await get_mrkp(priority_2_items)
-            await send_answer(msg, reply_markup=markup)
-        # else:
-        #     msg = f'Ничего такого срочного! \U0001F609 \n'
-        if priority_1_items or priority_2_items:
-            await send_answer(f'Ред. в {db_table.updated_time}')
-        else:
-            await send_answer('Да вроде бы всё есть! \U0001F389 ')
-        return await Step.wait_del_from_list.set()
-
+    send_answer = await Answer.get_answer_type(request)
+    answer_txt = str()
+    markup = InlineKeyboardMarkup()
+    markup_btns = list()
     if msg_txt == btn_add.text:
         items_lists = db_table.irrelevant_items
+        markup_btns = await Answer.get_markup_btns(items_lists)
         if items_lists:
-            msg = 'Что нужно добавить? \U0001F914 '
-            markup = await get_mrkp(items_lists)
-            await send_answer(msg, reply_markup=markup)
+            answer_txt = 'Что нужно добавить? \U0001F914 '
         else:
-            await send_answer('Выбирать не из чего... \U00002639')
-        return await Step.wait_add_to_list.set()
+            answer_txt = 'Выбирать не из чего... \U00002639'
+        await Step.wait_add_to_list.set()
+
+    if msg_txt == btn_show.text:
+        actual_items = db_table.actual_items
+        if actual_items[0]:
+            markup_btns = await Answer.get_markup_btns(actual_items[0], prefix='!   ')
+        if actual_items[0]:
+            markup_btns.extend(await Answer.get_markup_btns(actual_items[1]))
+        if actual_items[0] or actual_items[1]:
+            answer_txt = f'Вот тебе список! \U0001F609 \n'
+            answer_txt += f'Ред. в {db_table.updated_time}'
+        else:
+            answer_txt = 'Да вроде бы всё есть! \U0001F389 '
+        await Step.wait_del_from_list.set()
 
     if msg_txt == btn_all.text:
         items_list = db_table.all_items
         if items_list:
-            msg = 'Что можно удалить? \U0001F914 '
-            markup = await get_mrkp(items_list, prefix='\U0000274C  ')
-            await send_answer(msg, reply_markup=markup)
+            answer_txt = 'Что можно удалить? \U0001F914 '
+            markup_btns = await Answer.get_markup_btns(items_list, prefix='\U0000274C  ')
         else:
-            await send_answer('Удалять нечего! \U0001F923')
+            answer_txt = 'Удалять нечего! \U0001F923'
         await Step.wait_del_forever.set()
-    # markup = get_mrkp(items_list)
-    # await message.answer(msg, reply_markup=markup)
+    markup.add(*markup_btns)
+    await send_answer(answer_txt, reply_markup=markup)
 
 
 # @dp.callback_query_handler(Text(equals=btn_yes.callback_data), state=Step.wait_new_item)
@@ -191,11 +179,6 @@ async def add_to_list(call: CallbackQuery, state: FSMContext):
     """
     Фоновая обработка добавления записи из неактуального списка в актуальный, включая изменение статуса в БД
     """
-    current_state = await state.get_state()
-    # if current_state == Step.wait_new_item.state:
-    #     item = (await state.get_data()).get('new_item')
-    #     db_table.insert_new_item(item)
-    # else:
     item = call.data
     await state.update_data(item=item)
     markup = InlineKeyboardMarkup()
@@ -213,17 +196,18 @@ async def add_to_list(call: CallbackQuery, state: FSMContext):
 #     await call.answer()
 
 
-@dp.callback_query_handler(state=Step.wait_priority)
+@dp.callback_query_handler(Text(equals=yn_btns_data), state=Step.wait_priority)
 async def get_priority(call: CallbackQuery, state: FSMContext):
     priority = 1 if call.data == btn_yes.callback_data else 2
     item = (await state.get_data()).get('item')
     await call.answer(f'Нужно:  {item} \U0001F44C')
     db_table.set_actual(item=item, priority=priority)
     # irrelevant_items_lists = db_table.irrelevant_items
+    # markup = await get_mrkp(irrelevant_items_lists, prefix='\U0000274C  ')
+    # if irrelevant_items_lists:
+    #     return await call.message.edit_reply_markup(markup)
+    # await call.answer('Выбирать не из чего... \U00002639')
     await Step.wait_add_to_list.set()
-    # await answer_manager(call, irrelevant_items_lists, state)
-    msg_obj = (await state.get_data()).get('action_obj')
-    await selected_action(msg_obj, state)
 
 
 @dp.callback_query_handler(state=Step.wait_del_from_list)
@@ -234,7 +218,13 @@ async def show_list(call: CallbackQuery, state: FSMContext):
     item = call.data
     db_table.set_irrelevant(item=item)
     await call.answer(f'Уже не нужно:  {item} \U0001F44C', cache_time=1)
-    await selected_action(call, state)
+    actual_items_lists = db_table.actual_items
+    for items_list in actual_items_lists:
+        if items_list:
+            markup = await get_mrkp(items_list)
+            await call.message.edit_reply_markup(markup)
+    if not (actual_items_lists[0] or actual_items_lists[1]):
+        await call.answer('Выбирать не из чего... \U00002639')
 
 
 @dp.callback_query_handler(state=Step.wait_del_forever)
@@ -245,10 +235,11 @@ async def delete_forever(call: CallbackQuery, state: FSMContext):
     item = call.data
     db_table.delete_item(item)
     await call.answer(f'Удалено из записей: {item} \U0001F44C', cache_time=2)
-    # all_items_lists = db_table.all_items
-    # await answer_manager(call, all_items_lists, state)
-    msg_obj = (await state.get_data()).get('action_obj')
-    await selected_action(msg_obj, state)
+    all_items_lists = db_table.all_items
+    if all_items_lists:
+        markup = await get_mrkp(all_items_lists, prefix='\U0000274C  ')
+        return await call.message.edit_reply_markup(markup)
+    await call.answer('Удалять нечего! \U0001F923')
 
 
 # async def answer_manager(call: CallbackQuery, item_lists: list, state: FSMContext):
@@ -375,4 +366,3 @@ async def adding_new_item(message: Message, state: FSMContext):
 
 if __name__ == '__main__':
     executor.start_polling(dp)
-
