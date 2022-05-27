@@ -121,7 +121,7 @@ class BaseList:
         connection.commit()
 
     def set_timestamp(self) -> None:
-        self.__class__.__updated_time = Services.get_datetime()
+        self.__updated_time = Services.get_datetime()
 
     @property
     def updated_time(self):
@@ -129,21 +129,26 @@ class BaseList:
 
 
 class Blocked():
-    __table_name = 'blocked'
 
-    def __init__(self):
-        cursor.execute(f'CREATE TABLE IF NOT EXISTS {self.__table_name} (user_id INTEGER, datetime TEXT, msg TEXT)')
+    def __init__(self, table_name):
+        if isinstance(table_name, str):
+            self.__table_name = table_name
+            cursor.execute(f"CREATE TABLE IF NOT EXISTS {self.table_name} (user_id INTEGER, datetime TEXT, msg TEXT)")
+
+    @property
+    def table_name(self):
+        return self.__table_name
 
     def add(self, user_id: int, msg: str) -> None:
-        cursor.execute(f'INSERT INTO {self.__table_name} VALUES ("{user_id}", '
-                       f'"{Services.get_datetime()}", "{repr(msg)}")')
+        cursor.execute(f"INSERT INTO {self.table_name} VALUES ('{user_id}', "
+                       f"'{Services.get_datetime()}', '{repr(msg)}')")
         connection.commit()
 
     @property
     def blocked(self) -> list:
-        blocked = cursor.execute(f'SELECT * FROM {self.__table_name}').fetchall()
+        blocked = cursor.execute(f"SELECT * FROM {self.table_name}").fetchall()
         return blocked
 
     def clear(self) -> None:
-        cursor.execute(f'DELETE FROM {self.__table_name}')
+        cursor.execute(f"DELETE FROM {self.table_name}")
         connection.commit()
