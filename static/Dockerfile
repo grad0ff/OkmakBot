@@ -7,4 +7,4 @@ RUN pip3 install aiogram
 RUN apt-get clean && \
     apt-get -y autoclean && \
     apt-get -y autoremove
-CMD ['python3', 'main.py']
+CMD ['python3', 'okmakbot.py']

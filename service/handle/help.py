@@ -3,7 +3,8 @@ import pytz
 from datetime import datetime
 
 
-class Services():
+class Help():
+
     @staticmethod
     def time_checker(func):
         """проверяет время выполнения"""

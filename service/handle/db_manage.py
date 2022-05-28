@@ -1,10 +1,10 @@
 import sqlite3
 
-import config
-from app_exceptions import TableNameError
-from services import Services
+from service.service.config import Config
+from service.service.app_exceptions import TableNameError
+from service.handle.help import Help
 
-with sqlite3.connect(config.DATABASE) as connection:
+with sqlite3.connect(Config.DATABASE) as connection:
     cursor = connection.cursor()
 
 
@@ -121,7 +121,7 @@ class BaseList:
         connection.commit()
 
     def set_timestamp(self) -> None:
-        self.__updated_time = Services.get_datetime()
+        self.__updated_time = Help.get_datetime()
 
     @property
     def updated_time(self):
@@ -141,7 +141,7 @@ class Blocked():
 
     def add(self, user_id: int, msg: str) -> None:
         cursor.execute(f"INSERT INTO {self.table_name} VALUES ('{user_id}', "
-                       f"'{Services.get_datetime()}', '{repr(msg)}')")
+                       f"'{Help.get_datetime()}', '{repr(msg)}')")
         connection.commit()
 
     @property

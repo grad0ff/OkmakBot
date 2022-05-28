@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton
 
 
-class Prepare:
+class Preparing:
 
     @staticmethod
     async def get_markup_btns(items_list: list, prefix='') -> list:

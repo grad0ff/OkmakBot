@@ -1,6 +1,6 @@
-config.py
+service/service/config.py
 bot_db.db
-log.txt
+static/log.txt
 
 /venv
 .*
